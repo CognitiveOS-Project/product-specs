@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://cognitiveos.org/schemas/audio-mcp.json",
+  "$id": "https://cognitive-os.org/schemas/audio-mcp.json",
   "title": "audio-mcp Tool Schema",
   "description": "MCP tool definitions for the CognitiveOS audio bridge — playback, capture, TTS via ALSA",
   "tools": [

@@ -354,7 +354,7 @@ The default registry URL is configured in `/etc/cognitiveos/registries.toml`:
 
 ```toml
 [default]
-url = "https://registry.cognitiveos.org/v1"
+url = "https://registry.cognitive-os.org/v1"
 
 [alternative]
 url = "https://my-private-registry.example.com/v1"

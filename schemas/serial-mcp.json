@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://cognitiveos.org/schemas/serial-mcp.json",
+  "$id": "https://cognitive-os.org/schemas/serial-mcp.json",
   "title": "serial-mcp Tool Schema",
   "description": "MCP tool definitions for the CognitiveOS serial bridge — UART, RS-232, USB serial",
   "tools": [

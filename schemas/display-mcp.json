@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://cognitiveos.org/schemas/display-mcp.json",
+  "$id": "https://cognitive-os.org/schemas/display-mcp.json",
   "title": "display-mcp Tool Schema",
   "description": "MCP tool definitions for the CognitiveOS display bridge — framebuffer image/video rendering",
   "tools": [

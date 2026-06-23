@@ -11,7 +11,7 @@ The protocol is open: anyone can implement a compatible server, host a private r
 ## Base URL
 
 ```
-https://registry.cognitiveos.org/v1
+https://registry.cognitive-os.org/v1
 ```
 
 All endpoints are prefixed with `/v1/`.
@@ -96,7 +96,7 @@ Get the latest version metadata for a patch.
   "description": "Background email triaging, drafting, and notification routing.",
   "author": "CognitiveOS",
   "license": "MIT",
-  "homepage": "https://cognitiveos.org/patches/email-manager",
+  "homepage": "https://cognitive-os.org/patches/email-manager",
   "repository": "https://github.com/CognitiveOS-Project/email-manager",
   "latest_version": "1.2.0",
   "versions": ["1.0.0", "1.1.0", "1.2.0"],

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://cognitiveos.org/schemas/network-mcp.json",
+  "$id": "https://cognitive-os.org/schemas/network-mcp.json",
   "title": "network-mcp Tool Schema",
   "description": "MCP tool definitions for the CognitiveOS network bridge — Wi-Fi, Ethernet, connectivity",
   "tools": [

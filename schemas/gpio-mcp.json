@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://cognitiveos.org/schemas/gpio-mcp.json",
+  "$id": "https://cognitive-os.org/schemas/gpio-mcp.json",
   "title": "gpio-mcp Tool Schema",
   "description": "MCP tool definitions for the CognitiveOS GPIO bridge — digital I/O, PWM via libgpiod",
   "tools": [
