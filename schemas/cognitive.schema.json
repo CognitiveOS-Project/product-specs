@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitiveos.org/schemas/cognitive.schema.json",
+  "title": "CognitiveOS Manifest",
+  "description": "Manifest schema for .cgp (Cognitive Patch) files in the CognitiveOS ecosystem",
+  "type": "object",
+  "required": ["name", "version", "description"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Unique package name in reverse-domain notation (e.g. com.cognitiveos.email-manager)",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9]$"
+    },
+    "version": {
+      "type": "string",
+      "description": "SemVer version string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.]+)?$"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of the patch"
+    },
+    "author": {
+      "type": "string",
+      "description": "Author or organization name"
+    },
+    "license": {
+      "type": "string",
+      "description": "SPDX license identifier",
+      "default": "MIT"
+    },
+    "dependencies": {
+      "type": "object",
+      "description": "Map of package names to SemVer version ranges",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[\\^~><=*]?\\d+\\.\\d+\\.\\d+"
+      }
+    },
+    "hardware_requirements": {
+      "type": "object",
+      "description": "Minimum hardware specifications for this patch",
+      "properties": {
+        "min_ram_mb": {
+          "type": "integer",
+          "description": "Minimum RAM in megabytes"
+        },
+        "min_storage_mb": {
+          "type": "integer",
+          "description": "Minimum free storage in megabytes"
+        },
+        "npu_required": {
+          "type": "boolean",
+          "description": "Whether a neural processing unit is required"
+        },
+        "recommended_npu": {
+          "type": "string",
+          "description": "Recommended NPU architecture"
+        }
+      }
+    },
+    "brain": {
+      "type": "object",
+      "description": "Model configuration for this patch",
+      "properties": {
+        "base_model": {
+          "type": "string",
+          "description": "Base model identifier (e.g. gemma4:2b)"
+        },
+        "adapter": {
+          "type": "string",
+          "description": "Path to LoRA adapter or quantized weights file (.gguf)"
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Inference parameters",
+          "properties": {
+            "temperature": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2
+            },
+            "num_ctx": {
+              "type": "integer",
+              "minimum": 512
+            }
+          }
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "description": "Runtime configuration for MCP servers and lifecycle",
+      "properties": {
+        "system_prompt": {
+          "type": "string",
+          "description": "Path to system prompt markdown file"
+        },
+        "tools_root": {
+          "type": "string",
+          "description": "Path to tools directory (default: ./tools)"
+        },
+        "mcp_servers": {
+          "type": "array",
+          "description": "MCP server definitions to spawn",
+          "items": {
+            "type": "object",
+            "required": ["name", "command"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "MCP server name"
+              },
+              "command": {
+                "type": "string",
+                "description": "Path to executable"
+              },
+              "args": {
+                "type": "array",
+                "description": "Command-line arguments",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "env": {
+                "type": "object",
+                "description": "Environment variables"
+              },
+              "transport": {
+                "type": "string",
+                "enum": ["stdio", "http"],
+                "description": "MCP transport protocol"
+              }
+            }
+          }
+        },
+        "background": {
+          "type": "boolean",
+          "description": "Whether this patch runs as a background service (always-listening)"
+        }
+      }
+    }
+  }
+}
