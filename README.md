@@ -7,8 +7,10 @@ Standards, schemas, and protocol definitions for the CognitiveOS ecosystem.
 | Path | Description |
 |------|-------------|
 | `specs/vision.md` | Product vision, design philosophy, and UX scenarios |
-| `specs/cgp-format.md` | `.cgp` (Cognitive Patch) distribution format |
 | `specs/architecture.md` | System architecture overview and data flow |
+| `specs/filesystem-hierarchy.md` | Directory tree, partition layout, persistence rules |
+| `specs/mcp-conventions.md` | MCP tool naming, transport, error codes, registration |
+| `specs/cgp-format.md` | `.cgp` (Cognitive Patch) distribution format |
 | `specs/system-codes.md` | Wake, Idle, Security, Reset, Unlock code definitions |
 | `schemas/cognitive.schema.json` | JSON Schema for cognitive.json manifest |
 
