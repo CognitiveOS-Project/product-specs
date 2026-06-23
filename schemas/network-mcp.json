@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitiveos.org/schemas/network-mcp.json",
+  "title": "network-mcp Tool Schema",
+  "description": "MCP tool definitions for the CognitiveOS network bridge — Wi-Fi, Ethernet, connectivity",
+  "tools": [
+    {
+      "name": "cognitiveos.network.scan",
+      "description": "Scan for available Wi-Fi networks",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "interface": { "type": "string", "default": "wlan0", "description": "Wireless interface name" }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "networks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ssid": { "type": "string" },
+                "signal_percent": { "type": "integer" },
+                "encrypted": { "type": "boolean" },
+                "frequency_ghz": { "type": "number" }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "cognitiveos.network.connect",
+      "description": "Connect to a Wi-Fi network",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ssid": { "type": "string", "description": "Network SSID" },
+          "password": { "type": "string", "description": "Network password (if encrypted)" },
+          "interface": { "type": "string", "default": "wlan0", "description": "Wireless interface name" },
+          "timeout_seconds": { "type": "integer", "default": 15, "description": "Connection timeout" }
+        },
+        "required": ["ssid"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "ip_address": { "type": "string" },
+          "signal_percent": { "type": "integer" }
+        }
+      }
+    },
+    {
+      "name": "cognitiveos.network.disconnect",
+      "description": "Disconnect from the current network",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "interface": { "type": "string", "default": "wlan0", "description": "Interface to disconnect" }
+        }
+      }
+    },
+    {
+      "name": "cognitiveos.network.status",
+      "description": "Get current network connectivity status",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "interface": { "type": "string", "default": "all", "description": "Interface name or 'all'" }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "connected": { "type": "boolean" },
+          "interface": { "type": "string" },
+          "ip_address": { "type": "string" },
+          "signal_percent": { "type": "integer" },
+          "gateway": { "type": "string" },
+          "dns": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    {
+      "name": "cognitiveos.network.list_interfaces",
+      "description": "List available network interfaces",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "interfaces": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "type": { "type": "string", "enum": ["wifi", "ethernet", "cellular", "loopback"] },
+                "connected": { "type": "boolean" }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "errors": {
+    "E_NO_INTERFACE": { "description": "No wireless interface found" },
+    "E_CONNECTION_FAILED": { "description": "Failed to connect (wrong password, out of range)" },
+    "E_SCAN_FAILED": { "description": "Wi-Fi scan failed (interface down, no permission)" },
+    "E_TIMEOUT": { "description": "Operation timed out" }
+  },
+  "hardware_dependencies": {
+    "required": ["wireless interface (wlan0) or ethernet"],
+    "optional": [],
+    "packages": ["iw", "wpa_supplicant", "wireless-tools", "dhcpcd"]
+  }
+}

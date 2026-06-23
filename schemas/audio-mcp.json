@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitiveos.org/schemas/audio-mcp.json",
+  "title": "audio-mcp Tool Schema",
+  "description": "MCP tool definitions for the CognitiveOS audio bridge — playback, capture, TTS via ALSA",
+  "tools": [
+    {
+      "name": "cognitiveos.audio.play",
+      "description": "Play an audio file through the default ALSA output device",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "description": "Absolute path to the audio file" },
+          "volume": { "type": "number", "minimum": 0, "maximum": 100, "default": 100, "description": "Volume percentage" },
+          "block": { "type": "boolean", "default": true, "description": "Wait for playback to finish before returning" }
+        },
+        "required": ["path"]
+      }
+    },
+    {
+      "name": "cognitiveos.audio.capture",
+      "description": "Capture audio from the default microphone input",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "duration_seconds": { "type": "integer", "minimum": 1, "maximum": 60, "default": 5, "description": "Capture duration in seconds" },
+          "output_path": { "type": "string", "description": "Path to save the captured audio" },
+          "silence_timeout": { "type": "number", "default": 1.5, "description": "Seconds of silence before auto-stop" }
+        },
+        "required": ["output_path"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string" },
+          "duration_seconds": { "type": "number" },
+          "format": { "type": "string", "enum": ["wav", "ogg"] }
+        }
+      }
+    },
+    {
+      "name": "cognitiveos.audio.tts",
+      "description": "Generate and play text-to-speech audio",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string", "description": "Text to speak" },
+          "voice": { "type": "string", "default": "default", "description": "Voice model identifier" },
+          "speed": { "type": "number", "minimum": 0.5, "maximum": 2.0, "default": 1.0, "description": "Speech speed multiplier" }
+        },
+        "required": ["text"]
+      }
+    },
+    {
+      "name": "cognitiveos.audio.set_volume",
+      "description": "Set the system audio volume level",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "volume": { "type": "number", "minimum": 0, "maximum": 100, "description": "Volume percentage" },
+          "device": { "type": "string", "default": "default", "description": "ALSA device name" }
+        },
+        "required": ["volume"]
+      }
+    },
+    {
+      "name": "cognitiveos.audio.mute",
+      "description": "Mute or unmute the system audio",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "muted": { "type": "boolean", "description": "True to mute, false to unmute" },
+          "device": { "type": "string", "default": "default", "description": "ALSA device name" }
+        },
+        "required": ["muted"]
+      }
+    }
+  ],
+  "errors": {
+    "E_NO_DEVICE": { "description": "No audio device found" },
+    "E_DEVICE_BUSY": { "description": "Audio device is busy (another process using it)" },
+    "E_UNSUPPORTED_FORMAT": { "description": "Audio format not supported" },
+    "E_CAPTURE_FAILED": { "description": "Audio capture failed (no microphone or permission)" }
+  },
+  "hardware_dependencies": {
+    "required": ["ALSA (snd_pcm)"],
+    "optional": ["snd_mic"],
+    "packages": ["alsa-utils", "alsa-lib", "mpg123", "flac"]
+  }
+}

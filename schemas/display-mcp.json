@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitiveos.org/schemas/display-mcp.json",
+  "title": "display-mcp Tool Schema",
+  "description": "MCP tool definitions for the CognitiveOS display bridge — framebuffer image/video rendering",
+  "tools": [
+    {
+      "name": "cognitiveos.display.render_image",
+      "description": "Render an image file to the primary display framebuffer",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "description": "Absolute path to the image file" },
+          "fit": { "type": "string", "enum": ["fill", "fit", "stretch"], "default": "fit", "description": "How to fit the image to the screen" }
+        },
+        "required": ["path"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "width": { "type": "integer" },
+          "height": { "type": "integer" },
+          "format": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "cognitiveos.display.render_video",
+      "description": "Play a video file on the primary display using DRM direct rendering",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "description": "Absolute path to the video file" },
+          "loop": { "type": "boolean", "default": false, "description": "Loop the video" },
+          "volume": { "type": "number", "minimum": 0, "maximum": 100, "default": 100, "description": "Audio volume percentage" }
+        },
+        "required": ["path"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "duration_seconds": { "type": "number" },
+          "width": { "type": "integer" },
+          "height": { "type": "integer" }
+        }
+      }
+    },
+    {
+      "name": "cognitiveos.display.screenshot",
+      "description": "Capture the current framebuffer contents to a file",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "output_path": { "type": "string", "description": "Path to save the screenshot" }
+        },
+        "required": ["output_path"]
+      }
+    },
+    {
+      "name": "cognitiveos.display.clear",
+      "description": "Clear the framebuffer and return display to idle state",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ],
+  "errors": {
+    "E_NOT_FOUND": { "description": "Media file not found at specified path" },
+    "E_UNSUPPORTED_FORMAT": { "description": "File format not supported by the framebuffer renderer" },
+    "E_BUSY": { "description": "Framebuffer is currently in use by another process" },
+    "E_HARDWARE": { "description": "Display hardware error (no framebuffer device, DRM init failed)" }
+  },
+  "hardware_dependencies": {
+    "required": ["/dev/fb0"],
+    "optional": ["dri/card0", "dri/controlD64"],
+    "packages": ["fbv", "mpv", "fbi"]
+  }
+}
