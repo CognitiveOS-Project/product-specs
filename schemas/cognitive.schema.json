@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://cognitiveos.org/schemas/cognitive.schema.json",
+  "$id": "https://cognitive-os.org/schemas/cognitive.schema.json",
   "title": "CognitiveOS Manifest",
   "description": "Manifest schema for .cgp (Cognitive Patch) files in the CognitiveOS ecosystem",
   "type": "object",

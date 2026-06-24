@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.org/schemas/gpio-mcp.json",
+  "title": "gpio-mcp Tool Schema",
+  "description": "MCP tool definitions for the CognitiveOS GPIO bridge — digital I/O, PWM via libgpiod",
+  "tools": [
+    {
+      "name": "cognitiveos.gpio.pin_read",
+      "description": "Read the digital value of a GPIO pin",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "pin": { "type": "integer", "description": "GPIO pin number (board or chip-relative)" },
+          "chip": { "type": "integer", "default": 0, "description": "GPIO chip number" }
+        },
+        "required": ["pin"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "pin": { "type": "integer" },
+          "value": { "type": "integer", "enum": [0, 1] },
+          "mode": { "type": "string", "enum": ["input", "output"] }
+        }
+      }
+    },
+    {
+      "name": "cognitiveos.gpio.pin_write",
+      "description": "Set the digital value of a GPIO pin",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "pin": { "type": "integer", "description": "GPIO pin number" },
+          "value": { "type": "integer", "enum": [0, 1], "description": "0 = LOW, 1 = HIGH" },
+          "chip": { "type": "integer", "default": 0, "description": "GPIO chip number" }
+        },
+        "required": ["pin", "value"]
+      }
+    },
+    {
+      "name": "cognitiveos.gpio.pwm",
+      "description": "Set PWM duty cycle on a PWM-capable pin",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "pin": { "type": "integer", "description": "PWM pin number" },
+          "duty_cycle_percent": { "type": "number", "minimum": 0, "maximum": 100, "description": "Duty cycle 0-100%" },
+          "frequency_hz": { "type": "integer", "default": 1000, "description": "PWM frequency in Hz" },
+          "chip": { "type": "integer", "default": 0, "description": "PWM chip number" }
+        },
+        "required": ["pin", "duty_cycle_percent"]
+      }
+    },
+    {
+      "name": "cognitiveos.gpio.mode",
+      "description": "Set the direction mode of a GPIO pin",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "pin": { "type": "integer", "description": "GPIO pin number" },
+          "mode": { "type": "string", "enum": ["input", "output", "input_pullup", "input_pulldown"], "description": "Pin direction mode" },
+          "chip": { "type": "integer", "default": 0, "description": "GPIO chip number" }
+        },
+        "required": ["pin", "mode"]
+      }
+    },
+    {
+      "name": "cognitiveos.gpio.list_pins",
+      "description": "List all available GPIO pins and their current state",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "chip": { "type": "integer", "default": 0, "description": "GPIO chip number" }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "chip": { "type": "integer" },
+          "pins": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "offset": { "type": "integer" },
+                "name": { "type": "string" },
+                "mode": { "type": "string" },
+                "value": { "type": "integer" },
+                "pwm_capable": { "type": "boolean" }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "errors": {
+    "E_INVALID_PIN": { "description": "Pin number does not exist on this chip" },
+    "E_MODE_NOT_SUPPORTED": { "description": "Pin does not support the requested mode" },
+    "E_PWM_NOT_SUPPORTED": { "description": "Pin does not support PWM" },
+    "E_CHIP_NOT_FOUND": { "description": "GPIO chip not found" },
+    "E_BUSY": { "description": "Pin is already in use by another process or kernel driver" }
+  },
+  "hardware_dependencies": {
+    "required": [],
+    "optional": ["/dev/gpiochip0", "/sys/class/gpio", "/sys/class/pwm"],
+    "packages": ["libgpiod", "gpiod-tools"]
+  }
+}

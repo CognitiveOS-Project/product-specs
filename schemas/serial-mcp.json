@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.org/schemas/serial-mcp.json",
+  "title": "serial-mcp Tool Schema",
+  "description": "MCP tool definitions for the CognitiveOS serial bridge — UART, RS-232, USB serial",
+  "tools": [
+    {
+      "name": "cognitiveos.serial.list_ports",
+      "description": "List available serial ports on the system",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ports": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": { "type": "string", "description": "Device path (e.g. /dev/ttyUSB0)" },
+                "description": { "type": "string", "description": "Human-readable description" },
+                "vendor": { "type": "string" },
+                "product": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "cognitiveos.serial.connect",
+      "description": "Open a connection to a serial port",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "port": { "type": "string", "description": "Device path (e.g. /dev/ttyUSB0)" },
+          "baud_rate": { "type": "integer", "default": 9600, "enum": [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400], "description": "Baud rate" },
+          "data_bits": { "type": "integer", "default": 8, "enum": [5, 6, 7, 8] },
+          "stop_bits": { "type": "integer", "default": 1, "enum": [1, 2] },
+          "parity": { "type": "string", "default": "none", "enum": ["none", "even", "odd", "mark", "space"] },
+          "timeout_ms": { "type": "integer", "default": 1000, "description": "Read timeout in milliseconds" }
+        },
+        "required": ["port"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "session_id": { "type": "string", "description": "Serial session identifier for subsequent operations" },
+          "port": { "type": "string" },
+          "baud_rate": { "type": "integer" }
+        }
+      }
+    },
+    {
+      "name": "cognitiveos.serial.send",
+      "description": "Send data to a connected serial port",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "session_id": { "type": "string", "description": "Session ID from connect" },
+          "data": { "type": "string", "description": "Data to send (text)" },
+          "encoding": { "type": "string", "default": "utf-8", "enum": ["utf-8", "ascii", "hex"], "description": "Data encoding" },
+          "terminator": { "type": "string", "default": "\\n", "description": "Line terminator to append" }
+        },
+        "required": ["session_id", "data"]
+      }
+    },
+    {
+      "name": "cognitiveos.serial.receive",
+      "description": "Read data from a connected serial port",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "session_id": { "type": "string", "description": "Session ID from connect" },
+          "bytes": { "type": "integer", "default": 256, "description": "Number of bytes to read" },
+          "until": { "type": "string", "description": "Read until this string is encountered (e.g. '\\n')" },
+          "timeout_ms": { "type": "integer", "description": "Override the connect-timeout for this read" }
+        },
+        "required": ["session_id"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "string", "description": "Received data" },
+          "bytes_read": { "type": "integer" }
+        }
+      }
+    },
+    {
+      "name": "cognitiveos.serial.disconnect",
+      "description": "Close a serial port connection",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "session_id": { "type": "string", "description": "Session ID from connect" }
+        },
+        "required": ["session_id"]
+      }
+    }
+  ],
+  "errors": {
+    "E_PORT_NOT_FOUND": { "description": "Serial port not found" },
+    "E_PORT_BUSY": { "description": "Serial port is already in use" },
+    "E_PORT_ERROR": { "description": "Serial port communication error (hardware flow control, break)" },
+    "E_SESSION_NOT_FOUND": { "description": "Session ID does not match any open connection" },
+    "E_TIMEOUT": { "description": "Read operation timed out" }
+  },
+  "hardware_dependencies": {
+    "required": [],
+    "optional": ["/dev/ttyS*", "/dev/ttyUSB*", "/dev/ttyAMA*"],
+    "packages": ["picocom", "screen"]
+  }
+}
