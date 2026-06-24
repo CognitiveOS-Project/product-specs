@@ -39,3 +39,7 @@ Standards, schemas, and protocol definitions for the CognitiveOS ecosystem.
 | [core-mcp-bridges](https://github.com/CognitiveOS-Project/core-mcp-bridges) | Hardware | MCP hardware servers |
 | [cgp-template](https://github.com/CognitiveOS-Project/cgp-template) | Dev | .cgp boilerplate |
 | [registry-server](https://github.com/CognitiveOS-Project/registry-server) | Infra | Package registry |
+
+## Author
+
+**Jean Machuca** — [GitHub](https://github.com/jeanmachuca) · [Sponsor](https://github.com/sponsors/jeanmachuca)
