@@ -38,7 +38,10 @@ Standards, schemas, and protocol definitions for the CognitiveOS ecosystem.
 | [inference](https://github.com/CognitiveOS-Project/inference) | Brain | LLM inference engine |
 | [core-mcp-bridges](https://github.com/CognitiveOS-Project/core-mcp-bridges) | Hardware | MCP hardware servers |
 | [cgp-template](https://github.com/CognitiveOS-Project/cgp-template) | Dev | .cgp boilerplate |
+| [cognitiveos](https://github.com/CognitiveOS-Project/cognitiveos) | Meta | Main project repository |
 | [registry-server](https://github.com/CognitiveOS-Project/registry-server) | Infra | Package registry |
+
+See also: [cognitive-os.org](https://cognitive-os.org) — project website
 
 ## Author
 
