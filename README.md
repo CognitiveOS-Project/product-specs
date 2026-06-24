@@ -41,7 +41,19 @@ Standards, schemas, and protocol definitions for the CognitiveOS ecosystem.
 | [cognitiveos](https://github.com/CognitiveOS-Project/cognitiveos) | Meta | Main project repository |
 | [registry-server](https://github.com/CognitiveOS-Project/registry-server) | Infra | Package registry |
 
+<<<<<<< Updated upstream
 See also: [cognitive-os.org](https://cognitive-os.org) — project website
+=======
+## Contributing
+
+1. Branch from `development`, not `main`
+2. Use topic branches: `feature/<name>`, `fix/<name>`, `bugfix/<name>`
+3. Open a PR to `development` with a clear title and description
+4. Merge via squash after review
+5. Changes flow to `main` via a release PR
+
+See the [SDLC repo](https://github.com/CognitiveOS-Project/sdlc) for the full contribution guide, code review standards, and testing strategy.
+>>>>>>> Stashed changes
 
 ## Author
 
