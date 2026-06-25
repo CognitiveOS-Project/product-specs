@@ -9,16 +9,36 @@ CognitiveOS spans 13 repos under the `CognitiveOS-Project` GitHub org. Releases 
 ## Version Numbering
 
 ```
-vMAJOR.MINOR.PATCH
+vMAJOR.MINOR.PATCH[-SUFFIX]
 ```
 
 | Bump | When | Example |
 |------|------|---------|
-| **MAJOR** | Breaking protocol, format, or API changes | `v2.0.0` |
-| **MINOR** | New features, new repos, new binaries | `v0.2.0` |
-| **PATCH** | Bug fixes, CI improvements, documentation | `v0.1.1` |
+| **MAJOR** | Change in foundations (core architecture, protocol, API contract) | `v1.0.0` → `v2.0.0` |
+| **MINOR** | Change in feature status (in-development → done, done → deprecated, in-development → dismissed) | `v1.0.0` → `v1.2.0` |
+| **PATCH** | Correction to an existing feature (including deleting files) | `v1.0.0` → `v1.0.1` |
+| **PATCH + -patch** | Urgent bug fix | `v0.1.1-patch` |
 
 Pre-1.0 convention: `v0.MINOR.PATCH` — MINOR for features, PATCH for fixes.
+
+## Release Suffixes
+
+| Suffix | Meaning | Requirements |
+|--------|---------|-------------|
+| `-alpha` | Low-tested release | Feature-complete, minimal smoke testing |
+| `-beta` | Tested release, no functional warranty | All planned tests pass, known issues documented |
+| `-lts` | Stable release, functionality warranted | All tests passing, changelog complete, no known critical issues |
+
+A version without a suffix (e.g. `v1.0.0`) is a **bare release** — use when the stability level is self-evident from context. Prefer explicit suffixes for public releases.
+
+Examples:
+
+| Tag | Meaning |
+|-----|---------|
+| `v0.1.0-alpha` | First alpha, foundations in development |
+| `v0.4.0-beta` | Feature-complete beta, ready for testing |
+| `v1.0.0-lts` | First stable release with warranty |
+| `v1.2.3-patch` | Urgent bug fix on any track |
 
 ## When to Tag
 
@@ -33,12 +53,12 @@ Tag at the end of a **release cycle** — after all PRs for that cycle have been
 
 - **Annotated tags only** — lightweight tags (`git tag vX.Y.Z`) must not be used. Annotated tags carry a message and creator metadata:
   ```bash
-  git tag -a v0.1.0 -m "v0.1.0 — short description of the release"
+  git tag -a v0.1.0-alpha -m "v0.1.0-alpha — foundations in development"
   ```
 - **Tag message** should briefly describe the contents of the release for that repo.
 - **Tags must be pushed** to the remote:
   ```bash
-  git push origin v0.1.0
+  git push origin v0.1.0-alpha
   ```
 
 ## Tagging Process
@@ -47,8 +67,8 @@ Tag at the end of a **release cycle** — after all PRs for that cycle have been
 
 ```bash
 git fetch origin main
-git tag -a vMAJOR.MINOR.PATCH -m "vMAJOR.MINOR.PATCH — description" origin/main
-git push origin vMAJOR.MINOR.PATCH
+git tag -a vMAJOR.MINOR.PATCH-SUFFIX -m "vMAJOR.MINOR.PATCH-SUFFIX — description" origin/main
+git push origin vMAJOR.MINOR.PATCH-SUFFIX
 ```
 
 ### All Repos (Bulk)
@@ -56,7 +76,7 @@ git push origin vMAJOR.MINOR.PATCH
 Use the API for bulk tagging to avoid cloning every repo:
 
 ```bash
-version="vMAJOR.MINOR.PATCH"
+version="vMAJOR.MINOR.PATCH-SUFFIX"
 for repo in cognitiveos product-specs sdlc cpm core-mcp-bridges inference cognitiveosd cli registry-server cgp-template cognitiveos-distro cognitive-os.org .github; do
   gh -R CognitiveOS-Project/$repo api repos/CognitiveOS-Project/$repo/git/refs -X POST \
     -f ref="refs/tags/$version" \
@@ -72,11 +92,11 @@ Even if a repo had no changes in a release cycle, it should still be tagged at t
 
 ## Integration Tags (Development)
 
-Optionally, tag `development` branch HEADs with a `-dev.N` suffix after each feature/fix merge:
+Optionally, tag `development` branch HEADs with a `-dev.N` suffix after each feature/fix merge. The suffix appends to the full version including release suffix:
 
 ```bash
-git tag -a v0.1.0-dev.1 -m "v0.1.0-dev.1 — post-merge integration checkpoint"
-git push origin v0.1.0-dev.1
+git tag -a v0.1.0-alpha-dev.1 -m "v0.1.0-alpha-dev.1 — post-merge integration checkpoint"
+git push origin v0.1.0-alpha-dev.1
 ```
 
 These are **not required** — they are useful for tracking intermediate states during long release cycles.
