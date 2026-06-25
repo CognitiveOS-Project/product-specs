@@ -71,6 +71,7 @@ Thin MCP servers that wrap Linux system tools:
 - Handles: wake word detection, system code validation, hardware audit loop
 - Stateless — no memory, no learning
 - Compiled into base firmware image
+- See [Raw Model Specification](raw-model.md) for full details
 
 **Wide Model** (operational):
 - Can be local or remote
@@ -78,6 +79,7 @@ Thin MCP servers that wrap Linux system tools:
 - Upgradeable from distributed catalog
 - Can be swapped at runtime by Raw Model
 - May require unlock code for premium versions
+- See [Ephemeral Identity](ephemeral-identity.md) for long-term biometric vision
 
 ### 4. Package Layer (cpm + .cgp)
 
@@ -127,3 +129,7 @@ Human speaks → audio-mcp captures → cognitiveosd receives
 | PC/Server | Embedded | Local (GPU) | SSD |
 | TV | Embedded | Remote (LAN server) | Flash |
 | AC/MCU | Dedicated MCU | Remote (cloud/LAN) | <1 MB |
+
+## Recommended Hardware
+
+See [Hardware Recommendations](hardware.md) for a curated list of tested platforms for each deployment role (Wide Model inference, Raw Model edge, MCP bridges, and industrial nodes).
