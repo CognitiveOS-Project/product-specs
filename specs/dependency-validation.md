@@ -43,8 +43,10 @@ These run when a publisher uploads a `.cgp` to the registry. Failures reject the
 | A6 | No transitive dependency has status `buggy` | Proceed | **Reject publish** (HTTP 422), list buggy deps |
 | A7 | All files referenced in `runtime.mcp_servers[].command` and `contents` exist inside the `.cgp` archive | Proceed | **Reject publish** (HTTP 422), list missing files |
 | A8 | Declared `hardware_requirements` values are within sane bounds (`min_ram_mb` ≤ 1048576, `min_storage_mb` ≤ 1073741824, etc.) | Proceed | **Reject publish** (HTTP 422), return field that exceeds bounds |
+| A9 | `source.repository` is a valid URL with a known git provider host (github.com, gitlab.com, bitbucket.org) or a self-hosted domain that serves a git page | Proceed | **Reject publish** (HTTP 422), "invalid or unreachable repository URL" |
+| A10 | `source.issues` is a valid URL that responds with HTTP 200 within 10 seconds | Proceed | **Reject publish** (HTTP 422), "invalid or unreachable issues URL" |
 
-**Result of full pass:** Package stored in registry, metadata includes `sha256`, parsed `cognitive.json`, and computed dependency tree. Clients can now discover and install it.
+**Result of full pass:** Package stored in registry, metadata includes `sha256`, parsed `cognitive.json`, `source` URLs, and computed dependency tree. Clients can now discover and install it.
 
 ### B. Install-time Rules (cpm)
 
@@ -58,6 +60,22 @@ These run when cpm downloads and installs a `.cgp`. All deps in the tree are res
 | B4 | All transitive dependencies already installed OR resolvable from registry — no version conflicts | Resolve full tree | **Delete download**, log audit event (type: `dependency_conflict`, details) |
 | B5 | No transitive dependency has status `buggy` | Proceed | **Delete download**, log audit event (type: `buggy_dependency`, list buggy versions) |
 | B6 | Free disk space ≥ total size of all archives in the dependency tree (pre-flight check) | Proceed | **Delete download**, log audit event (type: `disk_space`, required bytes, available bytes) |
+| B7 | `source.issues` URL is reachable (HTTP 200 within 10 seconds) | Proceed | **Log warning**, continue install |
+| B8 | Query `source.issues` provider API for open bugs labelled "bug" — if known provider (GitHub/GitLab/Bitbucket), derive API URL automatically; otherwise use `source.issues_api` | Proceed | **Delete download**, log audit event (type: `unreachable_issues_api`, URL) |
+| B9 | No open bugs found in provider API response | Proceed | **Delete download**, log audit event (type: `known_bugs`, count, list of bug URLs) |
+
+**Provider API URL derivation:**
+
+If the `source.issues` URL matches a known provider, cpm derives the bugs API endpoint from `source.repository` automatically:
+
+| Provider | Repository pattern | API URL pattern (bugs) | Response parser |
+|----------|-------------------|------------------------|-----------------|
+| **GitHub** | `https://github.com/{owner}/{repo}` | `https://api.github.com/repos/{owner}/{repo}/issues?labels=bug&state=open&per_page=1` | JSON array — open bugs exist if array is non-empty |
+| **GitLab** | `https://gitlab.com/{owner}/{repo}` | `https://gitlab.com/api/v4/projects/{owner}%2F{repo}/issues?labels=bug&state=opened&per_page=1` | JSON array — open bugs exist if array is non-empty |
+| **Bitbucket** | `https://bitbucket.org/{owner}/{repo}` | `https://api.bitbucket.org/2.0/repositories/{owner}/{repo}/issues?q=state=%22new%22+AND+kind=%22bug%22` | Paginated JSON — open bugs exist if `values` array is non-empty |
+| **Self-hosted / Unknown** | — | Falls back to `source.issues_api` (must be set explicitly) | Raw JSON array — any non-empty response is treated as "bugs exist" |
+
+If the provider is unknown and `source.issues_api` is not set, rule B8 fails (unreachable API).
 
 **Result of full pass:**
 1. All `.cgp` archives in the dependency tree are extracted to `/cognitiveos/patches/<name>/<version>/`
