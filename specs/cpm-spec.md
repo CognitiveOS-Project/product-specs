@@ -6,6 +6,169 @@ Version: 1.0.0-draft
 
 `cpm` is the CognitiveOS package manager. It installs, removes, updates, and publishes `.cgp` (Cognitive Patch) files. It is the npm/pip/apt for the agent era — but hardware-aware, MCP-native, and designed for autonomous AI operation.
 
+## Universal Protocol Router
+
+cpm is designed as a **universal protocol router** for agentic capabilities. It is not limited to its native `.cgp` schema — it can ingest packages from any ecosystem through a **Registry Dispatcher Pattern**.
+
+When a user runs an install command, cpm parses the target string and dispatches to the appropriate protocol handler. All handlers converge to a single **Normalization Engine** that produces a system-validated `.cgp` manifest.
+
+### 1. Supported Input Formats
+
+| Syntax | Handler | Example |
+|--------|---------|---------|
+| File path | Local file | `cpm install ./email-manager.cgp` |
+| Plain name | Registry (from `registries.toml`) | `cpm install email-manager` |
+| `github.com/{owner}/{repo}@{tag}` | Git provider (source tarball) | `cpm install github.com/user/skill@v1.2.0` |
+| `gitlab:{owner}/{repo}#{ref}` | Git provider shorthand | `cpm install gitlab:user/skill#dev` |
+| `bitbucket:{owner}/{repo}@{tag}` | Git provider shorthand | `cpm install bitbucket:user/skill@v1.0.0` |
+| `ghr:{owner}/{repo}@{tag}` | GitHub Releases (pre-built asset) | `cpm install ghr:user/skill@v1.0.0` |
+| `npm:@{scope}/{name}` | NPM registry | `cpm install npm:@user/ambient-lighting` |
+| `bun:@{scope}/{name}` | Bun registry | `cpm install bun:@user/package` |
+| `deno:jsr/@{scope}/{name}` | JSR (Deno) registry | `cpm install deno:jsr/@sys/automation` |
+| Raw URL | Direct HTTP fetch | `cpm install https://example.com/skill.cgp` |
+
+### 2. Protocol Handlers
+
+#### Native & Direct Git Providers
+
+Resolves `github.com/{owner}/{repo}@{tag}` by querying the provider's source tarball API:
+
+```
+cpm install github.com/user/skill@v1.2.0
+→ GET api.github.com/repos/user/skill/tarball/v1.2.0
+→ stream archive → Normalization Engine
+```
+
+The handler detects the provider from the hostname, maps to the correct API (GitHub tarball API, GitLab repository archive, Bitbucket downloads), and streams the source archive directly — no local `git clone` required.
+
+#### GitHub Releases (ghr)
+
+Resolves `ghr:{owner}/{repo}@{tag}` by querying the repository's release assets.
+
+```
+cpm install ghr:user/skill@v1.0.0
+→ GET api.github.com/repos/user/skill/releases/tags/v1.0.0
+→ find .cgp asset in release assets
+→ stream asset → Normalization Engine
+```
+
+Prefer `.cgp` assets over source tarballs. If no `.cgp` asset exists, fall back to the source tarball. This handler is ideal for pre-compiled patches containing Go or C extensions that should not be compiled on low-power edge hardware.
+
+#### NPM & Bun Registries
+
+Resolves `npm:@{scope}/{name}` by querying the standard NPM registry protocol.
+
+```
+cpm install npm:@user/ambient-lighting
+→ GET registry.npmjs.org/@user/ambient-lighting
+→ extract dist.tarball URL from metadata
+→ download .tgz archive → Normalization Engine
+```
+
+Supports any npm-compatible registry (public npm, GitHub Packages, Verdaccio, custom). The handler reads the `cognitive_os` key inside `package.json` after extraction to recover full CognitiveOS metadata.
+
+#### Deno & JSR Registries
+
+Resolves `deno:jsr/@{scope}/{name}` by querying the JSR registry API.
+
+```
+cpm install deno:jsr/@sys/automation
+→ GET api.jsr.io/scopes/@sys/packages/automation
+→ download source archive → Normalization Engine
+```
+
+For direct Deno URL installs, downloads the modular entry point and walks imports to assemble a complete archive.
+
+### 3. Normalization Engine
+
+Every downloaded archive — regardless of source — passes through the same normalization pipeline:
+
+```
+[ Downloaded Archive ] (from any resolver)
+          │
+          ▼
+┌─────────────────────────────────────────────────┐
+│              Normalization Engine                │
+├─────────────────────────────────────────────────┤
+│ 1. Unpack archive to isolated temp sandbox       │
+│ 2. Scan for manifest:                            │
+│    ┌──────────────────────────────────────┐      │
+│    │ IF cognitive.json exists:            │      │
+│    │   Parse natively (full schema)       │      │
+│    │ IF package.json exists:              │      │
+│    │   Extract cognitive_os key            │      │
+│    │   Merge with package.json metadata   │      │
+│    │ IF neither: reject archive           │      │
+│    └──────────────────────────────────────┘      │
+│ 3. Validate merged manifest against schema       │
+│ 4. Return Manifest + extracted path              │
+└──────────────────────┬──────────────────────────┘
+                       │
+                       ▼
+          [ Standard install pipeline ]
+          (hardware audit → deps → source
+           validation → extract → spawn)
+```
+
+For JavaScript/TypeScript ecosystems (NPM, Bun, Deno), a standard `package.json` is augmented with a `cognitive_os` key to carry CognitiveOS-specific metadata without requiring a separate `cognitive.json`:
+
+```json
+{
+  "name": "@user/ambient-lighting",
+  "version": "1.0.4",
+  "main": "dist/index.js",
+  "cognitive_os": {
+    "runtime": {
+      "command": "bun",
+      "args": ["run", "dist/index.js"],
+      "memory_mb": 64,
+      "capabilities": ["audio"]
+    },
+    "prompts": ["prompts/main.md"],
+    "tools": ["tools/schema.json"],
+    "hardware_requirements": {
+      "min_ram_mb": 512,
+      "npu_required": false
+    }
+  }
+}
+```
+
+The Normalization Engine:
+- Extracts `name`, `version`, `description` from `package.json` top-level fields
+- Merges `cognitive_os.*` fields into the manifest
+- Validates the combined result against the standard `cognitive.schema.json`
+- Produces a pruned `.cgp`-format directory ready for the standard install pipeline
+
+### 4. Updated Install Lifecycle
+
+The existing [install lifecycle](#install-lifecycle-detailed) gains a new resolution step at the front:
+
+```
+Step 0: Resolve Source (updated)
+  0.1 Parse target string through Registry Dispatcher
+  0.2 Route to appropriate protocol handler
+  0.3 Download archive from source
+  0.4 Normalize archive (unpack → detect → validate)
+  0.5 Continue to existing lifecycle (Step 2: Parse and Validate)
+```
+
+Steps 2-8 remain unchanged — the Normalization Engine guarantees the same `.cgp` format regardless of origin.
+
+### 5. Security: Immutable Checksum Ledger
+
+When downloading from any non-registry source (git provider, NPM, etc.), cpm queries the configured registry's checksum notary endpoint:
+
+```
+GET /v1/notary/check?source=github.com&path=user/skill&version=v1.2.0
+```
+
+- **First-seen:** Registry fetches the package, records SHA-256, returns it to cpm.
+- **Subsequent:** Registry returns recorded SHA-256. cpm computes local hash and compares.
+- **Mismatch:** Installation rejected, security alert logged.
+
+If no registry is configured, cpm records checksums locally at `/cognitiveos/data/checksums.json` and warns the user.
+
 ## Command Reference
 
 ### Global Flags
