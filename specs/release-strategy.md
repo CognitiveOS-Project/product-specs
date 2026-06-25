@@ -31,6 +31,20 @@ Pre-1.0 convention: `v0.MINOR.PATCH` — MINOR for features, PATCH for fixes.
 
 A version without a suffix (e.g. `v1.0.0`) is a **bare release** — use when the stability level is self-evident from context. Prefer explicit suffixes for public releases.
 
+## Update Priority
+
+When updating CognitiveOS (system update, package manager upgrade, distro reflash), always use the **latest available version** across all repos, selected by the following priority order:
+
+| Priority | Suffix | Description |
+|----------|--------|-------------|
+| 1 (highest) | `-lts` | Stable release, fully tested, functionally warranted |
+| 2 | `-beta` | Tested release, no warranty |
+| 3 (lowest) | `-alpha` | Low-tested release |
+
+**Rule:** Select the highest-priority suffix that exists for the target version number. If `v1.0.0-lts` exists, it is preferred over `v1.2.0-beta`. If no `-lts` is available, prefer `-beta` over `-alpha`.
+
+Bare versions (no suffix) are treated as equal to `-lts` for update priority — they represent a stable, warranted release. When both a bare version and an `-lts` exist at the same MAJOR.MINOR.PATCH, prefer the `-lts` (it carries an explicit stability commitment).
+
 Examples:
 
 | Tag | Meaning |
