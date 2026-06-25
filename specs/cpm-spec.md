@@ -12,7 +12,7 @@ Version: 1.0.0-draft
 
 | Flag | Description |
 |------|-------------|
-| `--registry <url>` | Override default registry (default: from `/etc/cognitiveos/registries.toml`) |
+| `--registry <url\|section>` | Override registry. Accepts a URL or a section path like `official.eu` or `alternative.community` (default: from `/etc/cognitiveos/registries.toml`) |
 | `--verbose` | Detailed output |
 | `--yes` | Skip confirmation prompts (automatic mode, used by AI) |
 | `--no-audit` | Skip hardware audit (force install — use with caution) |
@@ -27,6 +27,8 @@ Install a cognitive patch from a local `.cgp` path or a registry name.
 cpm install ./email-manager.cgp
 cpm install email-manager                          # resolves from registry
 cpm install email-manager --registry https://my-registry.example.com
+cpm install email-manager --registry official.eu       # resolves to EU mirror
+cpm install email-manager --registry alternative.community  # community registry
 ```
 
 **Exit codes:** 0=ok, 1=generic error, 2=hardware rejection (overridable with --no-audit), 3=dependency failure, 4=network error, 5=already installed
@@ -348,17 +350,53 @@ Audit results are cached at `/cognitiveos/audit/current.json` and refreshed ever
 
 ## Registry Protocol
 
-### Default Registry
+### Registry Configuration
 
-The default registry URL is configured in `/etc/cognitiveos/registries.toml`:
+Registry sources are configured in `/etc/cognitiveos/registries.toml`. The format distinguishes between **official** registries (maintained by the CognitiveOS Project) and **alternative** registries (self-hosted or third-party).
 
 ```toml
-[default]
-url = "https://registry.cognitive-os.org/v1"
+[official]
+primary = "https://registry-us-all-distros-official.cognitive-os.org/v1"
+
+[official.mirrors]
+eu = "https://registry-eu-all-distros-official.cognitive-os.org/v1"
+jp = "https://registry-jp-all-distros-official.cognitive-os.org/v1"
+sg = "https://registry-sg-all-distros-official.cognitive-os.org/v1"
 
 [alternative]
-url = "https://my-private-registry.example.com/v1"
+community = "https://community-registry.cognitive-os.org/v1"
+my-private = "https://my-registry.example.com/v1"
 ```
+
+#### URL Convention
+
+Official registry URLs follow this naming pattern:
+```
+https://registry-{country}-{distro}-{role}.cognitive-os.org/v1
+```
+
+| Segment | Description | Example |
+|---------|-------------|---------|
+| `{country}` | ISO region tag | `us`, `eu`, `jp`, `sg`, `br` |
+| `{distro}` | Distribution tag | `cognitiveos`, `all-distros` |
+| `{role}` | Registry role | `official`, `mirror`, `alternative` |
+
+#### Resolution Order
+
+When resolving a package by name without `--registry`:
+
+1. **Official primary** — try first
+2. **Official mirrors** — try each in listed order until a match is found
+3. **Alternative registries** — try each (no defined order) until a match is found
+4. **Fail** — package not found
+
+When `--registry` is specified:
+
+- **Raw URL** (`--registry https://...`) — use that URL directly
+- **Section path** (`--registry official.eu`) — resolve to the matching entry:
+  - `official` → primary URL
+  - `official.{mirror_name}` → named mirror
+  - `alternative.{name}` → named alternative
 
 ### API Contract
 
