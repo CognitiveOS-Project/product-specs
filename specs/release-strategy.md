@@ -87,18 +87,26 @@ git push origin vMAJOR.MINOR.PATCH-SUFFIX
 
 ### All Repos (Bulk)
 
-Use the API for bulk tagging to avoid cloning every repo:
+Use local clones with annotated tags to stay compliant with the tag requirements. The API-based approach (deprecated) creates lightweight tags, which are forbidden.
 
 ```bash
 version="vMAJOR.MINOR.PATCH-SUFFIX"
+msg="vMAJOR.MINOR.PATCH-SUFFIX — description"
+
 for repo in cognitiveos product-specs sdlc cpm core-mcp-bridges inference cognitiveosd cli registry-server cgp-template cognitiveos-distro cognitive-os.org .github; do
-  gh -R CognitiveOS-Project/$repo api repos/CognitiveOS-Project/$repo/git/refs -X POST \
-    -f ref="refs/tags/$version" \
-    -f sha="$(gh -R CognitiveOS-Project/$repo api repos/CognitiveOS-Project/$repo/branches/main --jq '.commit.sha')"
+  target="/cognitiveos/releases/$repo"
+  if [ ! -d "$target" ]; then
+    git clone git@github.com:CognitiveOS-Project/$repo.git "$target"
+  fi
+  (cd "$target" && git fetch --tags && git tag -a "$version" -m "$msg" && git push origin "$version")
 done
 ```
 
-Note: The API-based method creates **lightweight** tags. For **annotated** tags across all repos, tag locally on repos you have cloned and push, or use the API to create a tag object first, then a ref.
+This approach:
+- **Always creates annotated tags** — compliant with the tag requirements
+- **Isolates each repo** — a failure in one does not poison the directory state of the next
+- **Only clones once** — subsequent runs skip the clone step
+- **Fetches remote tags** — prevents accidental overwrite of existing releases
 
 ### For Repos Without Changes
 
