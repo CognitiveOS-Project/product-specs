@@ -87,26 +87,19 @@ git push origin vMAJOR.MINOR.PATCH-SUFFIX
 
 ### All Repos (Bulk)
 
-Use local clones with annotated tags to stay compliant with the tag requirements. The API-based approach (deprecated) creates lightweight tags, which are forbidden.
+Use the `release-tag.sh` script from the [sdlc](https://github.com/CognitiveOS-Project/sdlc) repo. It implements this exact process with proper error handling:
 
 ```bash
-version="vMAJOR.MINOR.PATCH-SUFFIX"
-msg="vMAJOR.MINOR.PATCH-SUFFIX — description"
-
-for repo in cognitiveos product-specs sdlc cpm core-mcp-bridges inference cognitiveosd cli registry-server cgp-template cognitiveos-distro cognitive-os.org .github; do
-  target="/cognitiveos/releases/$repo"
-  if [ ! -d "$target" ]; then
-    git clone git@github.com:CognitiveOS-Project/$repo.git "$target"
-  fi
-  (cd "$target" && git fetch --tags && git tag -a "$version" -m "$msg" && git push origin "$version")
-done
+sdlc/scripts/release-tag.sh vMAJOR.MINOR.PATCH-SUFFIX "vMAJOR.MINOR.PATCH-SUFFIX — description"
 ```
 
-This approach:
+The script:
 - **Always creates annotated tags** — compliant with the tag requirements
-- **Isolates each repo** — a failure in one does not poison the directory state of the next
-- **Only clones once** — subsequent runs skip the clone step
-- **Fetches remote tags** — prevents accidental overwrite of existing releases
+- **Isolates each repo** in a subshell — a failure in one does not poison the next
+- **Only clones once** — persistent cache at `~/.cache/cognitiveos/releases`
+- **Fetches remote tags** first — prevents accidental overwrite of existing releases
+- **Idempotent** — skips repos where the tag already exists
+- **Reports per-repo status** — summary table with pass/fail/skip
 
 ### For Repos Without Changes
 
