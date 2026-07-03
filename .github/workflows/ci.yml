@@ -1,35 +1,19 @@
 name: CI
 
 on:
-  push:
-    branches: [development, main]
   pull_request:
     branches: [development]
+  push:
+    branches: [development, main]
 
 jobs:
-  validate-schemas:
+  continuous-integration:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Validate JSON schemas
         run: |
-          for schema in schemas/*.json; do
-            echo "Validating $schema..."
-            python3 -m json.tool "$schema" > /dev/null
+          for f in schemas/*.json; do
+            echo "Validating $f..."
+            python3 -m json.tool "$f" > /dev/null
           done
-          echo "All schemas valid"
-
-  check-links:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Check for broken markdown references
-        run: |
-          # Verify referenced files exist
-          for spec in specs/*.md; do
-            [ -f "$spec" ] || { echo "Missing $spec"; exit 1; }
-          done
-          for schema in schemas/*.json; do
-            [ -f "$schema" ] || { echo "Missing $schema"; exit 1; }
-          done
-          echo "All spec and schema files present"
