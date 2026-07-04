@@ -31,6 +31,20 @@ Pre-1.0 convention: `v0.MINOR.PATCH` — MINOR for features, PATCH for fixes.
 
 A version without a suffix (e.g. `v1.0.0`) is a **bare release** — use when the stability level is self-evident from context. Prefer explicit suffixes for public releases.
 
+## Update Priority
+
+When updating CognitiveOS (system update, package manager upgrade, distro reflash), always use the **latest available version** across all repos, selected by the following priority order:
+
+| Priority | Suffix | Description |
+|----------|--------|-------------|
+| 1 (highest) | `-lts` | Stable release, fully tested, functionally warranted |
+| 2 | `-beta` | Tested release, no warranty |
+| 3 (lowest) | `-alpha` | Low-tested release |
+
+**Rule:** Select the highest-priority suffix that exists for the target version number. If `v1.0.0-lts` exists, it is preferred over `v1.2.0-beta`. If no `-lts` is available, prefer `-beta` over `-alpha`.
+
+Bare versions (no suffix) are treated as equal to `-lts` for update priority — they represent a stable, warranted release. When both a bare version and an `-lts` exist at the same MAJOR.MINOR.PATCH, prefer the `-lts` (it carries an explicit stability commitment).
+
 Examples:
 
 | Tag | Meaning |
@@ -73,18 +87,19 @@ git push origin vMAJOR.MINOR.PATCH-SUFFIX
 
 ### All Repos (Bulk)
 
-Use the API for bulk tagging to avoid cloning every repo:
+Use the `release-tag.sh` script from the [sdlc](https://github.com/CognitiveOS-Project/sdlc) repo. It implements this exact process with proper error handling:
 
 ```bash
-version="vMAJOR.MINOR.PATCH-SUFFIX"
-for repo in cognitiveos product-specs sdlc cpm core-mcp-bridges inference cognitiveosd cli registry-server cgp-template cognitiveos-distro cognitive-os.org .github; do
-  gh -R CognitiveOS-Project/$repo api repos/CognitiveOS-Project/$repo/git/refs -X POST \
-    -f ref="refs/tags/$version" \
-    -f sha="$(gh -R CognitiveOS-Project/$repo api repos/CognitiveOS-Project/$repo/branches/main --jq '.commit.sha')"
-done
+sdlc/scripts/release-tag.sh vMAJOR.MINOR.PATCH-SUFFIX "vMAJOR.MINOR.PATCH-SUFFIX — description"
 ```
 
-Note: The API-based method creates **lightweight** tags. For **annotated** tags across all repos, tag locally on repos you have cloned and push, or use the API to create a tag object first, then a ref.
+The script:
+- **Always creates annotated tags** — compliant with the tag requirements
+- **Isolates each repo** in a subshell — a failure in one does not poison the next
+- **Only clones once** — persistent cache at `~/.cache/cognitiveos/releases`
+- **Fetches remote tags** first — prevents accidental overwrite of existing releases
+- **Idempotent** — skips repos where the tag already exists
+- **Reports per-repo status** — summary table with pass/fail/skip
 
 ### For Repos Without Changes
 

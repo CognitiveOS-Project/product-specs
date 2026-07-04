@@ -41,9 +41,8 @@ Standards, schemas, and protocol definitions for the CognitiveOS ecosystem.
 | [cognitiveos](https://github.com/CognitiveOS-Project/cognitiveos) | Meta | Main project repository |
 | [registry-server](https://github.com/CognitiveOS-Project/registry-server) | Infra | Package registry |
 
-<<<<<<< Updated upstream
 See also: [cognitive-os.org](https://cognitive-os.org) — project website
-=======
+
 ## Contributing
 
 1. Branch from `development`, not `main`
@@ -53,7 +52,6 @@ See also: [cognitive-os.org](https://cognitive-os.org) — project website
 5. Changes flow to `main` via a release PR
 
 See the [SDLC repo](https://github.com/CognitiveOS-Project/sdlc) for the full contribution guide, code review standards, and testing strategy.
->>>>>>> Stashed changes
 
 ## Author
 
