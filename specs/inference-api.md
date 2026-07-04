@@ -4,7 +4,7 @@ Version: 1.0.0-draft
 
 ## Overview
 
-`coginfer` is the CognitiveOS inference engine. It wraps `llama.cpp` (or equivalent backend) as a child process and exposes an HTTP API for model loading, inference, and resource reporting.
+`coginfer` is the CognitiveOS inference engine. It links `llama.cpp` via a vendored CGo bridge (single `import "C"` file) and exposes an HTTP API for model loading, inference, and resource reporting.
 
 It runs as a supervised process managed by `cognitiveosd`.
 

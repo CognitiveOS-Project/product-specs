@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [development]
+  push:
+    branches: [development, main]
+
+jobs:
+  continuous-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate JSON schemas
+        run: |
+          for f in schemas/*.json; do
+            echo "Validating $f..."
+            python3 -m json.tool "$f" > /dev/null
+          done
