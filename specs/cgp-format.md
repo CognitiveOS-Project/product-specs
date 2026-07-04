@@ -20,8 +20,8 @@ A `.cgp` file is a **tar.gz** (gzip-compressed tar archive). Uncompressed direct
 │   └── templates/          # Structured response formats
 ├── tools/                  # MCP servers and scripts (OPTIONAL)
 │   └── mcp-server-*        # Executable MCP server binary or script
-└── weights/                # Model adapters (OPTIONAL)
-    └── *.gguf              # GGUF-format LoRA or quantization layer
+└── weights/                # Model weights (OPTIONAL)
+    └── *.gguf              # Bundled GGUF firmware or adapter
 ```
 
 ### Rules

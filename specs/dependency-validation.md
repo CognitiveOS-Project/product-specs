@@ -41,7 +41,7 @@ These run when a publisher uploads a `.cgp` to the registry. Failures reject the
 | A4 | Dependency graph: no cycles | Proceed | **Reject publish** (HTTP 422), list cycle path |
 | A5 | All transitive dependencies exist in registry at declared versions | Proceed | **Reject publish** (HTTP 422), list unresolvable deps |
 | A6 | No transitive dependency has status `buggy` | Proceed | **Reject publish** (HTTP 422), list buggy deps |
-| A7 | All files referenced in `runtime.mcp_servers[].command` and `contents` exist inside the `.cgp` archive | Proceed | **Reject publish** (HTTP 422), list missing files |
+| A7 | All files referenced in `runtime.mcp_servers[].command`, `brain.wide_model.adapter`, `brain.wide_model.weights` (if inline), `brain.raw_model.weights` (if inline), and `runtime.system_prompt` exist inside the `.cgp` archive | Proceed | **Reject publish** (HTTP 422), list missing files |
 | A8 | Declared `hardware_requirements` values are within sane bounds (`min_ram_mb` ≤ 1048576, `min_storage_mb` ≤ 1073741824, etc.) | Proceed | **Reject publish** (HTTP 422), return field that exceeds bounds |
 | A9 | `source.repository` is a valid URL with a known git provider host (github.com, gitlab.com, bitbucket.org) or a self-hosted domain that serves a git page | Proceed | **Reject publish** (HTTP 422), "invalid or unreachable repository URL" |
 | A10 | `source.issues` is a valid URL that responds with HTTP 200 within 10 seconds | Proceed | **Reject publish** (HTTP 422), "invalid or unreachable issues URL" |
