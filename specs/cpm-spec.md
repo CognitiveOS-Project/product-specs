@@ -6,13 +6,176 @@ Version: 1.0.0-draft
 
 `cpm` is the CognitiveOS package manager. It installs, removes, updates, and publishes `.cgp` (Cognitive Patch) files. It is the npm/pip/apt for the agent era — but hardware-aware, MCP-native, and designed for autonomous AI operation.
 
+## Universal Protocol Router
+
+cpm is designed as a **universal protocol router** for agentic capabilities. It is not limited to its native `.cgp` schema — it can ingest packages from any ecosystem through a **Registry Dispatcher Pattern**.
+
+When a user runs an install command, cpm parses the target string and dispatches to the appropriate protocol handler. All handlers converge to a single **Normalization Engine** that produces a system-validated `.cgp` manifest.
+
+### 1. Supported Input Formats
+
+| Syntax | Handler | Example |
+|--------|---------|---------|
+| File path | Local file | `cpm install ./email-manager.cgp` |
+| Plain name | Registry (from `registries.toml`) | `cpm install email-manager` |
+| `github.com/{owner}/{repo}@{tag}` | Git provider (source tarball) | `cpm install github.com/user/skill@v1.2.0` |
+| `gitlab:{owner}/{repo}#{ref}` | Git provider shorthand | `cpm install gitlab:user/skill#dev` |
+| `bitbucket:{owner}/{repo}@{tag}` | Git provider shorthand | `cpm install bitbucket:user/skill@v1.0.0` |
+| `ghr:{owner}/{repo}@{tag}` | GitHub Releases (pre-built asset) | `cpm install ghr:user/skill@v1.0.0` |
+| `npm:@{scope}/{name}` | NPM registry | `cpm install npm:@user/ambient-lighting` |
+| `bun:@{scope}/{name}` | Bun registry | `cpm install bun:@user/package` |
+| `deno:jsr/@{scope}/{name}` | JSR (Deno) registry | `cpm install deno:jsr/@sys/automation` |
+| Raw URL | Direct HTTP fetch | `cpm install https://example.com/skill.cgp` |
+
+### 2. Protocol Handlers
+
+#### Native & Direct Git Providers
+
+Resolves `github.com/{owner}/{repo}@{tag}` by querying the provider's source tarball API:
+
+```
+cpm install github.com/user/skill@v1.2.0
+→ GET api.github.com/repos/user/skill/tarball/v1.2.0
+→ stream archive → Normalization Engine
+```
+
+The handler detects the provider from the hostname, maps to the correct API (GitHub tarball API, GitLab repository archive, Bitbucket downloads), and streams the source archive directly — no local `git clone` required.
+
+#### GitHub Releases (ghr)
+
+Resolves `ghr:{owner}/{repo}@{tag}` by querying the repository's release assets.
+
+```
+cpm install ghr:user/skill@v1.0.0
+→ GET api.github.com/repos/user/skill/releases/tags/v1.0.0
+→ find .cgp asset in release assets
+→ stream asset → Normalization Engine
+```
+
+Prefer `.cgp` assets over source tarballs. If no `.cgp` asset exists, fall back to the source tarball. This handler is ideal for pre-compiled patches containing Go or C extensions that should not be compiled on low-power edge hardware.
+
+#### NPM & Bun Registries
+
+Resolves `npm:@{scope}/{name}` by querying the standard NPM registry protocol.
+
+```
+cpm install npm:@user/ambient-lighting
+→ GET registry.npmjs.org/@user/ambient-lighting
+→ extract dist.tarball URL from metadata
+→ download .tgz archive → Normalization Engine
+```
+
+Supports any npm-compatible registry (public npm, GitHub Packages, Verdaccio, custom). The handler reads the `cognitive_os` key inside `package.json` after extraction to recover full CognitiveOS metadata.
+
+#### Deno & JSR Registries
+
+Resolves `deno:jsr/@{scope}/{name}` by querying the JSR registry API.
+
+```
+cpm install deno:jsr/@sys/automation
+→ GET api.jsr.io/scopes/@sys/packages/automation
+→ download source archive → Normalization Engine
+```
+
+For direct Deno URL installs, downloads the modular entry point and walks imports to assemble a complete archive.
+
+### 3. Normalization Engine
+
+Every downloaded archive — regardless of source — passes through the same normalization pipeline:
+
+```
+[ Downloaded Archive ] (from any resolver)
+          │
+          ▼
+┌─────────────────────────────────────────────────┐
+│              Normalization Engine                │
+├─────────────────────────────────────────────────┤
+│ 1. Unpack archive to isolated temp sandbox       │
+│ 2. Scan for manifest:                            │
+│    ┌──────────────────────────────────────┐      │
+│    │ IF cognitive.json exists:            │      │
+│    │   Parse natively (full schema)       │      │
+│    │ IF package.json exists:              │      │
+│    │   Extract cognitive_os key            │      │
+│    │   Merge with package.json metadata   │      │
+│    │ IF neither: reject archive           │      │
+│    └──────────────────────────────────────┘      │
+│ 3. Validate merged manifest against schema       │
+│ 4. Return Manifest + extracted path              │
+└──────────────────────┬──────────────────────────┘
+                       │
+                       ▼
+          [ Standard install pipeline ]
+          (hardware audit → deps → source
+           validation → extract → spawn)
+```
+
+For JavaScript/TypeScript ecosystems (NPM, Bun, Deno), a standard `package.json` is augmented with a `cognitive_os` key to carry CognitiveOS-specific metadata without requiring a separate `cognitive.json`:
+
+```json
+{
+  "name": "@user/ambient-lighting",
+  "version": "1.0.4",
+  "main": "dist/index.js",
+  "cognitive_os": {
+    "runtime": {
+      "command": "bun",
+      "args": ["run", "dist/index.js"],
+      "memory_mb": 64,
+      "capabilities": ["audio"]
+    },
+    "prompts": ["prompts/main.md"],
+    "tools": ["tools/schema.json"],
+    "hardware_requirements": {
+      "min_ram_mb": 512,
+      "npu_required": false
+    }
+  }
+}
+```
+
+The Normalization Engine:
+- Extracts `name`, `version`, `description` from `package.json` top-level fields
+- Merges `cognitive_os.*` fields into the manifest
+- Validates the combined result against the standard `cognitive.schema.json`
+- Produces a pruned `.cgp`-format directory ready for the standard install pipeline
+
+### 4. Updated Install Lifecycle
+
+The existing [install lifecycle](#install-lifecycle-detailed) gains a new resolution step at the front:
+
+```
+Step 0: Resolve Source (updated)
+  0.1 Parse target string through Registry Dispatcher
+  0.2 Route to appropriate protocol handler
+  0.3 Download archive from source
+  0.4 Normalize archive (unpack → detect → validate)
+  0.5 Continue to existing lifecycle (Step 2: Parse and Validate)
+```
+
+Steps 2-8 remain unchanged — the Normalization Engine guarantees the same `.cgp` format regardless of origin.
+
+### 5. Security: Immutable Checksum Ledger
+
+When downloading from any non-registry source (git provider, NPM, etc.), cpm queries the configured registry's checksum notary endpoint:
+
+```
+GET /v1/notary/check?source=github.com&path=user/skill&version=v1.2.0
+```
+
+- **First-seen:** Registry fetches the package, records SHA-256, returns it to cpm.
+- **Subsequent:** Registry returns recorded SHA-256. cpm computes local hash and compares.
+- **Mismatch:** Installation rejected, security alert logged.
+
+If no registry is configured, cpm records checksums locally at `/cognitiveos/data/checksums.json` and warns the user.
+
 ## Command Reference
 
 ### Global Flags
 
 | Flag | Description |
 |------|-------------|
-| `--registry <url>` | Override default registry (default: from `/etc/cognitiveos/registries.toml`) |
+| `--registry <url\|section>` | Override registry. Accepts a URL or a section path like `official.eu` or `alternative.community` (default: from `/etc/cognitiveos/registries.toml`) |
 | `--verbose` | Detailed output |
 | `--yes` | Skip confirmation prompts (automatic mode, used by AI) |
 | `--no-audit` | Skip hardware audit (force install — use with caution) |
@@ -27,6 +190,8 @@ Install a cognitive patch from a local `.cgp` path or a registry name.
 cpm install ./email-manager.cgp
 cpm install email-manager                          # resolves from registry
 cpm install email-manager --registry https://my-registry.example.com
+cpm install email-manager --registry official.eu       # resolves to EU mirror
+cpm install email-manager --registry alternative.community  # community registry
 ```
 
 **Exit codes:** 0=ok, 1=generic error, 2=hardware rejection (overridable with --no-audit), 3=dependency failure, 4=network error, 5=already installed
@@ -348,17 +513,53 @@ Audit results are cached at `/cognitiveos/audit/current.json` and refreshed ever
 
 ## Registry Protocol
 
-### Default Registry
+### Registry Configuration
 
-The default registry URL is configured in `/etc/cognitiveos/registries.toml`:
+Registry sources are configured in `/etc/cognitiveos/registries.toml`. The format distinguishes between **official** registries (maintained by the CognitiveOS Project) and **alternative** registries (self-hosted or third-party).
 
 ```toml
-[default]
-url = "https://registry.cognitive-os.org/v1"
+[official]
+primary = "https://registry-us-all-distros-official.cognitive-os.org/v1"
+
+[official.mirrors]
+eu = "https://registry-eu-all-distros-official.cognitive-os.org/v1"
+jp = "https://registry-jp-all-distros-official.cognitive-os.org/v1"
+sg = "https://registry-sg-all-distros-official.cognitive-os.org/v1"
 
 [alternative]
-url = "https://my-private-registry.example.com/v1"
+community = "https://community-registry.cognitive-os.org/v1"
+my-private = "https://my-registry.example.com/v1"
 ```
+
+#### URL Convention
+
+Official registry URLs follow this naming pattern:
+```
+https://registry-{country}-{distro}-{role}.cognitive-os.org/v1
+```
+
+| Segment | Description | Example |
+|---------|-------------|---------|
+| `{country}` | ISO region tag | `us`, `eu`, `jp`, `sg`, `br` |
+| `{distro}` | Distribution tag | `cognitiveos`, `all-distros` |
+| `{role}` | Registry role | `official`, `mirror`, `alternative` |
+
+#### Resolution Order
+
+When resolving a package by name without `--registry`:
+
+1. **Official primary** — try first
+2. **Official mirrors** — try each in listed order until a match is found
+3. **Alternative registries** — try each (no defined order) until a match is found
+4. **Fail** — package not found
+
+When `--registry` is specified:
+
+- **Raw URL** (`--registry https://...`) — use that URL directly
+- **Section path** (`--registry official.eu`) — resolve to the matching entry:
+  - `official` → primary URL
+  - `official.{mirror_name}` → named mirror
+  - `alternative.{name}` → named alternative
 
 ### API Contract
 
