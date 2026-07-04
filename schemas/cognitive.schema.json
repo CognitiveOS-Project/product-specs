@@ -29,6 +29,28 @@
       "description": "SPDX license identifier",
       "default": "MIT"
     },
+    "source": {
+      "type": "object",
+      "description": "Source repository and issue tracker URLs",
+      "required": ["repository", "issues"],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "format": "uri",
+          "description": "Git provider URL (GitHub, GitLab, Bitbucket, or self-hosted)"
+        },
+        "issues": {
+          "type": "string",
+          "format": "uri",
+          "description": "Issue tracker URL for bug reporting"
+        },
+        "issues_api": {
+          "type": "string",
+          "format": "uri",
+          "description": "Direct JSON API endpoint for bug queries (required when provider is not github/gitlab/bitbucket)"
+        }
+      }
+    },
     "dependencies": {
       "type": "object",
       "description": "Map of package names to SemVer version ranges",

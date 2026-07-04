@@ -11,8 +11,10 @@ The protocol is open: anyone can implement a compatible server, host a private r
 ## Base URL
 
 ```
-https://registry.cognitive-os.org/v1
+https://registry-{country}-all-distros-official.cognitive-os.org/v1
 ```
+
+The primary official instance resolves at `https://registry-us-all-distros-official.cognitive-os.org/v1`.
 
 All endpoints are prefixed with `/v1/`.
 

@@ -16,4 +16,13 @@ JSON Schema files are in `/schemas/`. Use any JSON Schema validator or `cue eval
 
 ## Contributing
 
-Propose changes via PR to `development`. All changes here affect every other repo — discuss breaking changes first.
+All repos follow the git workflow defined in root `.opencode/instructions/git-workflow.md` and documented fully in the [SDLC repo](https://github.com/CognitiveOS-Project/sdlc).
+
+- Branch from `development`, not `main`
+- Use topic branches: `feature/<name>`, `fix/<name>`, `bugfix/<name>`
+- Open a PR to `development` — squash merge after review
+- Changes flow to `main` via a release PR (never push directly to `main` or `development`)
+- No rebase — prefer `git pull` (merge)
+- Commit types: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`
+
+All changes here affect every other repo — discuss breaking changes first in an issue or GitHub Discussion.
