@@ -320,15 +320,25 @@ cd my-skill
 # Edit cognitive.json, add prompts/tools/weights
 ```
 
-Creates the standard `.cgp` directory structure with a default `cognitive.json`:
+Creates the standard `.cgp` directory structure with a default `cognitive.json`. Use `--template` to scaffold a package with the relevant fields pre-filled:
 
-```
-my-skill/
-├── cognitive.json
-├── prompts/
-│   ├── system.md
-│   └── templates/
-└── tools/
+| `--template` | Scaffolds | Use case |
+|---|---|---|
+| (default) | `name`, `version`, `description`, `prompts/system.md`, `tools/` | Minimal skill / prompt-only package |
+| `prompt-only` | `name`, `version`, `description`, `prompts/system.md` | Skill, persona, prompt template (no tools) |
+| `mcp-bridge` | `name`, `version`, `description`, `author`, `runtime.mcp_servers[]`, `runtime.system_prompt`, `prompts/`, `tools/` | Tool with MCP server binaries |
+| `gguf-model` | `name`, `version`, `description`, `author`, `brain.wide_model { weights.remote }`, `checksum.sha256`, `download_url` | LLM model package (remote weights) |
+| `firmware` | `name`, `version`, `description`, `author`, `brain.raw_model { type: firmware, weights }`, `checksum.sha256` | MCU/ESP32 firmware model |
+| `full` | All optional fields with placeholder values | Complete package manifest for reference |
+
+Examples:
+
+```bash
+cpm init my-email-skill --template prompt-only
+cpm init my-bridge      --template mcp-bridge
+cpm init gemma-4-2b     --template gguf-model
+cpm init cograw-esp32   --template firmware
+cpm init everything     --template full
 ```
 
 **Exit codes:** 0=ok, 1=directory already exists
