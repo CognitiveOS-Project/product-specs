@@ -87,18 +87,19 @@ git push origin vMAJOR.MINOR.PATCH-SUFFIX
 
 ### All Repos (Bulk)
 
-Use the API for bulk tagging to avoid cloning every repo:
+Use the `release-tag.sh` script from the [sdlc](https://github.com/CognitiveOS-Project/sdlc) repo. It implements this exact process with proper error handling:
 
 ```bash
-version="vMAJOR.MINOR.PATCH-SUFFIX"
-for repo in cognitiveos product-specs sdlc cpm core-mcp-bridges inference cognitiveosd cli registry-server cgp-template cognitiveos-distro cognitive-os.org .github; do
-  gh -R CognitiveOS-Project/$repo api repos/CognitiveOS-Project/$repo/git/refs -X POST \
-    -f ref="refs/tags/$version" \
-    -f sha="$(gh -R CognitiveOS-Project/$repo api repos/CognitiveOS-Project/$repo/branches/main --jq '.commit.sha')"
-done
+sdlc/scripts/release-tag.sh vMAJOR.MINOR.PATCH-SUFFIX "vMAJOR.MINOR.PATCH-SUFFIX — description"
 ```
 
-Note: The API-based method creates **lightweight** tags. For **annotated** tags across all repos, tag locally on repos you have cloned and push, or use the API to create a tag object first, then a ref.
+The script:
+- **Always creates annotated tags** — compliant with the tag requirements
+- **Isolates each repo** in a subshell — a failure in one does not poison the next
+- **Only clones once** — persistent cache at `~/.cache/cognitiveos/releases`
+- **Fetches remote tags** first — prevents accidental overwrite of existing releases
+- **Idempotent** — skips repos where the tag already exists
+- **Reports per-repo status** — summary table with pass/fail/skip
 
 ### For Repos Without Changes
 

@@ -41,6 +41,8 @@ Standards, schemas, and protocol definitions for the CognitiveOS ecosystem.
 | [cognitiveos](https://github.com/CognitiveOS-Project/cognitiveos) | Meta | Main project repository |
 | [registry-server](https://github.com/CognitiveOS-Project/registry-server) | Infra | Package registry |
 
+See also: [cognitive-os.org](https://cognitive-os.org) — project website
+
 ## Contributing
 
 1. Branch from `development`, not `main`
