@@ -29,6 +29,22 @@
       "description": "SPDX license identifier",
       "default": "MIT"
     },
+    "download_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Direct download URL for this specific version archive (set by registry on publish)"
+    },
+    "checksum": {
+      "type": "object",
+      "description": "Checksum for integrity verification of the archive blob",
+      "properties": {
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "SHA-256 hex digest of the archive"
+        }
+      }
+    },
     "source": {
       "type": "object",
       "description": "Source repository and issue tracker URLs",
@@ -83,30 +99,54 @@
     },
     "brain": {
       "type": "object",
-      "description": "Model configuration for this patch",
+      "description": "Model configuration for this patch. Use raw_model for self-contained models (e.g. firmware), wide_model for large models with remote weights, or both for hybrid packages.",
       "properties": {
         "base_model": {
           "type": "string",
-          "description": "Base model identifier (e.g. gemma4:2b)"
+          "description": "Base model identifier (e.g. gemma4:2b) — legacy field, prefer wide_model.base_model"
         },
         "adapter": {
           "type": "string",
-          "description": "Path to LoRA adapter or quantized weights file (.gguf)"
+          "description": "Path to LoRA adapter or quantized weights file (.gguf) — legacy field, prefer wide_model.adapter"
         },
-        "parameters": {
+        "raw_model": {
           "type": "object",
-          "description": "Inference parameters",
+          "description": "Self-contained model bundled directly in the archive (e.g. firmware for MCU/ESP32, tiny-llm binaries)",
           "properties": {
-            "temperature": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 2
+            "type": {
+              "type": "string",
+              "description": "Model type classification (e.g. firmware, tiny-llm, embedding)"
             },
-            "num_ctx": {
-              "type": "integer",
-              "minimum": 512
+            "weights": {
+              "$ref": "#/$defs/weights"
+            },
+            "parameters": {
+              "$ref": "#/$defs/brain_parameters"
             }
           }
+        },
+        "wide_model": {
+          "type": "object",
+          "description": "Large model with remote weights downloaded from a source (e.g. Gemma, Llama via huggingface or registry)",
+          "properties": {
+            "base_model": {
+              "type": "string",
+              "description": "Base model identifier (e.g. gemma4:2b)"
+            },
+            "adapter": {
+              "type": "string",
+              "description": "Path to LoRA adapter or quantized weights file inside the archive (.gguf)"
+            },
+            "weights": {
+              "$ref": "#/$defs/weights"
+            },
+            "parameters": {
+              "$ref": "#/$defs/brain_parameters"
+            }
+          }
+        },
+        "parameters": {
+          "$ref": "#/$defs/brain_parameters"
         }
       }
     },
@@ -159,6 +199,75 @@
         "background": {
           "type": "boolean",
           "description": "Whether this patch runs as a background service (always-listening)"
+        },
+        "capabilities": {
+          "type": "array",
+          "description": "Declared runtime capabilities for capability-based routing and dependency resolution",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._-]+$"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "brain_parameters": {
+      "type": "object",
+      "description": "Inference parameters for a brain model",
+      "properties": {
+        "temperature": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "num_ctx": {
+          "type": "integer",
+          "minimum": 512
+        }
+      }
+    },
+    "weights": {
+      "type": "object",
+      "description": "Weight source configuration. A model references weights either inline (bundled in archive) or remotely (downloaded at install time).",
+      "properties": {
+        "remote": {
+          "type": "object",
+          "description": "Remote weight source — weights are downloaded at install time rather than bundled",
+          "properties": {
+            "source": {
+              "type": "string",
+              "enum": ["huggingface", "registry", "url"],
+              "description": "Weight source provider"
+            },
+            "model_id": {
+              "type": "string",
+              "description": "Model identifier at the source (e.g. google/gemma-4-2b)"
+            },
+            "url": {
+              "type": "string",
+              "format": "uri",
+              "description": "Direct download URL for the weight file"
+            },
+            "filename": {
+              "type": "string",
+              "description": "Expected filename after download"
+            },
+            "format": {
+              "type": "string",
+              "enum": ["gguf", "safetensors", "pt"],
+              "description": "Weight file format"
+            },
+            "quant": {
+              "type": "string",
+              "description": "Quantization level (e.g. Q4_K_M, Q8_0)"
+            },
+            "size_bytes": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Expected file size in bytes"
+            }
+          }
         }
       }
     }
