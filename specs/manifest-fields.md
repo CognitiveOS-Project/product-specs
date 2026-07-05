@@ -102,6 +102,14 @@ For large models where weights are downloaded from a remote source at install ti
 | `adapter` | string | no | Path to LoRA adapter or quantized weights file inside the archive (.gguf) |
 | `weights` | object | no | Weight source configuration (typically `weights.remote` for downloaded weights) |
 | `parameters` | object | no | Inference parameters (overrides `brain.parameters` for this model) |
+| `routing` | object | no | Routing hints for the Raw Model to match prompts against installed models |
+
+#### `brain.wide_model.routing` Object
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `model_id` | string | **yes** | Unique model identifier used by the Raw Model routing hint (e.g. `gemma4:2b`, `llama3:8b`) |
+| `tags` | array of string | no | Classification tags the Raw Model matches against prompt intent (e.g. `["code", "math"]`, `["vision", "image"]`) |
 
 ### `brain.parameters` Object
 
