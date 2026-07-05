@@ -20,6 +20,7 @@ Real-world examples showcasing the CognitiveOS package ecosystem.
 | [EdTech Company](edtech-company.md) | `gguf-model` + `mcp-bridge` | Khan Academy offline tutor with curriculum decks and spaced repetition |
 | [Hardware OEM](hardware-oem.md) | `firmware` + multi-package | Framework Laptop factory OS image with signed firmware and OTA updates |
 | [Systems Integrator](systems-integrator.md) | `full` stack | Factory automation: PLC bridge + voice UI + sensor node firmware, air-gapped |
+| [AI Rover](ai-rover.md) | `mcp-bridge` | AI-controlled robot: GPIO motor control, distance sensing, voice commands, emergency shutdown |
 
 ## How CognitiveOS Makes These Possible
 
