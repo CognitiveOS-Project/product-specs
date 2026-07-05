@@ -242,6 +242,77 @@ JSON-RPC 2.0 over Unix socket at `/cognitiveos/run/raw.sock`.
 | `audit_resources` | `{requested_mb}` | `{available, total, allowed}` | Check if enough resources are available for a Wide Model load |
 | `healthcheck` | `{}` | `{status, model_loaded}` | Return whether the Raw Model is running and ready |
 | `version` | `{}` | `{version, model, quant}` | Return Raw Model version and loaded model info |
+| `validate_package_request` | `{operation, package_name, version, manifest_metadata}` | `{status, reason, command}` | Validate a package management operation against OS rules and security conditions |
+
+### 5. Package Request Validation
+
+The Raw Model validates all package management operations initiated by the Wide Model. This is a deterministic compiled-in check — no NN inference is involved.
+
+#### Validation Rules
+
+| Rule | Operations | Action |
+|------|-----------|--------|
+| Manifest has `raw_model` field | install | Deny with reason "raw_model packages cannot be auto-installed" |
+| Package is critical system component (`cognitiveosd`, `raw-model`, `base-os`) | install, remove, update | Deny with reason "critical system package" |
+| Rate limit exceeded (>5 operations / 5 min) | all | Deny with reason "rate limit exceeded" |
+| Disk space insufficient for install | install, update | Deny with reason "insufficient disk space" |
+| Registry not in allowlist | install, update | Deny with reason "registry not allowed" |
+| Read-only (search, list, info) with no violations | read-only | Approved (rate limit still enforced) |
+
+#### RPC Schema
+
+**Request:**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "validate_package_request",
+  "params": {
+    "operation": "install",
+    "package_name": "photo-viewer",
+    "version": "1.0.0",
+    "manifest_metadata": {
+      "has_raw_model": false,
+      "disk_space_mb": 128,
+      "registry": "registry.cognitiveos.org",
+      "is_critical": false
+    }
+  }
+}
+```
+
+**Response (approved):**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "status": "approved",
+    "reason": "",
+    "command": "cpm install photo-viewer"
+  }
+}
+```
+
+**Response (denied):**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "status": "denied",
+    "reason": "raw_model packages cannot be auto-installed",
+    "command": ""
+  }
+}
+```
+
+#### Rate Limiting
+
+- Counter per package operation type, reset every 5 minutes
+- Threshold: 5 operations total across all types
+- On exceed: return denied with remaining cooldown time
+- Counter stored in-memory by the Raw Model (no persistence needed — a restart resets the counter, which is acceptable for rate limiting)
 
 ### LLM Integration
 

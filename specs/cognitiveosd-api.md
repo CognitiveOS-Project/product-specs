@@ -438,6 +438,53 @@ Response:
 }
 ```
 
+### 8. Package Management — Validated Tool Invocation
+
+`cognitiveos.package.*` tools are **validated** — the daemon intercepts all calls to this namespace and sends a `validate_package_request` RPC to the Raw Model before forwarding to the `package-mcp` bridge.
+
+#### Validation Flow
+
+```
+1. Wide Model generates tool call: @@cognitiveos.package.install(name="photo-viewer", version="1.0.0")@@
+2. Daemon parses tool call in toolLoop()
+3. Daemon recognizes cognitiveos.package.* as validated namespace
+4. For install/update: daemon fetches manifest metadata from registry
+5. Daemon sends RPC to Raw Model: validate_package_request
+6. Raw Model checks compiled-in rules
+7. If denied: daemon returns error to Wide Model
+8. If approved: daemon forwards tool call to package-mcp bridge via normal mcp_invoke
+9. Result is returned to Wide Model
+```
+
+#### Validation Hook in Message Dispatch
+
+When the daemon receives a tool call from the Wide Model (parsed in `toolLoop`), it checks the tool name against the validated namespaces table before invoking:
+
+| Step | Action |
+|------|--------|
+| 1 | `parseToolCalls(response)` extracts tool calls |
+| 2 | For each tool call, check if tool namespace is in validated set |
+| 3 | If validated: call `rawClient.ValidatePackageRequest()` with operation, package name, version, manifest metadata |
+| 4 | If Raw Model denies: return `E_PACKAGE_DENIED` error to Wide Model |
+| 5 | If Raw Model approves: call `mcpMgr.Invoke()` normally |
+
+#### New Error Codes
+
+| Code | Description | When |
+|------|-------------|------|
+| `E_PACKAGE_DENIED` | Package operation rejected by Raw Model | Raw Model returns denied status |
+| `E_PACKAGE_RATE_LIMIT` | Too many package operations | Rate limit exceeded |
+| `E_PACKAGE_MANIFEST_FETCH` | Cannot fetch manifest metadata from registry | Registry unreachable during validation |
+| `E_PACKAGE_HAS_RAW_MODEL` | Package contains raw_model field | Manifest has_raw_model=true |
+
+#### Validated Namespaces
+
+| Namespace | Validation | Bridge Server |
+|-----------|-----------|--------------|
+| `cognitiveos.package.*` | All operations (read-only: rate limit only; mutating: full checks) | package-mcp |
+
+The validated namespaces table is maintained by the daemon and is not configurable at runtime. Adding a new validated namespace requires a daemon update.
+
 ## Error Codes
 
 | Code | Description | When |
@@ -451,6 +498,10 @@ Response:
 | `E_INSUFFICIENT_RESOURCES` | Not enough hardware resources | wide_model_load rejected |
 | `E_INTERNAL` | Unexpected daemon error | Bug or system failure |
 | `E_SHUTDOWN` | Daemon is shutting down | All requests rejected during shutdown |
+| `E_PACKAGE_DENIED` | Package operation rejected by Raw Model | Raw Model returns denied status |
+| `E_PACKAGE_RATE_LIMIT` | Too many package operations | Rate limit exceeded |
+| `E_PACKAGE_MANIFEST_FETCH` | Cannot fetch manifest metadata from registry | Registry unreachable during validation |
+| `E_PACKAGE_HAS_RAW_MODEL` | Package contains raw_model field | Manifest has_raw_model=true |
 
 ## Startup Sequence
 
