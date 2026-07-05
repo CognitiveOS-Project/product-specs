@@ -34,6 +34,18 @@ Use HTTP transport when:
 
 HTTP servers expose SSE or Streamable HTTP per the MCP spec. Port range: `18000-18100`.
 
+### Validated Tools
+
+Some tool domains are marked as **validated** — the daemon intercepts calls to these tools and sends a `validate_package_request` RPC to the Raw Model before forwarding to the MCP server. This ensures every operation is checked against OS rules and security conditions.
+
+| Domain | Validation | Reason |
+|--------|-----------|--------|
+| `cognitiveos.package` | All operations | Package misuse can break the system; every install/remove/update/search/list/info must be authorized |
+
+Read-only operations (search, list, info) skip manifest metadata fetch but still require Raw Model validation for rate limiting.
+
+See [cognitiveosd-api.md](cognitiveosd-api.md#8-package-management) for the full validation flow.
+
 ## Tool Naming
 
 All CognitiveOS MCP tools follow a reverse-domain naming scheme:
@@ -54,6 +66,7 @@ cognitiveos.<domain>.<action>
 | `cognitiveos.filesystem` | cognitiveosd (built-in) | `cognitiveos.filesystem.list`, `cognitiveos.filesystem.read` |
 | `cognitiveos.contacts` | cognitiveosd (built-in) | `cognitiveos.contacts.search` |
 | `cognitiveos.system` | cognitiveosd (built-in) | `cognitiveos.system.audit`, `cognitiveos.system.status` |
+| `cognitiveos.package` | package-mcp (validated) | `cognitiveos.package.search`, `cognitiveos.package.list`, `cognitiveos.package.install` |
 
 ### Rules
 
