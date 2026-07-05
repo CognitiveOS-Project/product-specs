@@ -4,7 +4,11 @@ Version: 1.0.0-draft
 
 ## Overview
 
-The Raw Model is the firmware-level inference engine in CognitiveOS. It is the always-on, trusted supervisor that runs at root level — distinct from the Wide Model which runs as an unprivileged `widemodel` user. The Raw Model validates system codes, authorizes unlock codes, enforces hardware audits, and acts as a deterministic guardrail between the human and the Wide Model.
+The Raw Model is the firmware-level inference engine in CognitiveOS. It is the always-on, trusted supervisor that runs at root level — distinct from the Wide Model which runs as an unprivileged `widemodel` user. The Raw Model validates system codes, authorizes unlock codes, enforces hardware audits, acts as a guardrail between the human and the Wide Model, and classifies prompts via GGUF inference.
+
+The Raw Model is a **hybrid** system:
+- **Compiled-in deterministic rules** for system code validation, unlock code verification (RSA), resource auditing, and package request validation — no NN inference involved.
+- **NN-based GGUF inference** (via llama.cpp CGo backend) for `validate_prompt` — classifies user prompts as ALLOW/DENY/MODIFY using a small, fast model loaded at startup.
 
 ## Architectural Position
 
@@ -191,9 +195,9 @@ The Raw Model is baked into the distribution image at build time — it is not d
 - Started by `cognitiveosd` at boot (before any MCP servers or Wide Model)
 - Runs as `root` — drop privileges not needed since it is the trusted supervisor
 - Always-on: never terminates unless the system shuts down
-- Two goroutines:
-  - **Main loop**: JSON-RPC server on Unix socket (system codes, unlock, audit)
-  - **Evdev monitor**: reads keyboard input, detects backdoor combos, spawns shells
+- Two main responsibilities:
+  - **JSON-RPC server**: dispatches RPC methods over Unix socket (system codes, unlock, audit, resource checks, prompt validation, package validation)
+  - **Evdev monitor** (planned, see ADR-003): reads keyboard input, detects backdoor combos, spawns shells — not yet implemented in the current codebase
 - Memory footprint: model size + ~200 MB overhead
 
 ### Transport Protocol
@@ -235,18 +239,19 @@ JSON-RPC 2.0 over Unix socket at `/cognitiveos/run/raw.sock`.
 
 ### RPC Methods
 
-| Method | Params | Returns | Description |
-|--------|--------|---------|-------------|
-| `validate_system_code` | `{code, origin}` | `{status, action}` | Validate a system code and return the action to take |
-| `check_unlock_code` | `{code, patch_name}` | `{status, message}` | Validate an unlock code for a paid patch |
-| `audit_resources` | `{requested_mb}` | `{available, total, allowed}` | Check if enough resources are available for a Wide Model load |
-| `healthcheck` | `{}` | `{status, model_loaded}` | Return whether the Raw Model is running and ready |
-| `version` | `{}` | `{version, model, quant}` | Return Raw Model version and loaded model info |
-| `validate_package_request` | `{operation, package_name, version, manifest_metadata}` | `{status, reason, command}` | Validate a package management operation against OS rules and security conditions |
+| Method | Params | Returns | Description | Uses GGUF? |
+|--------|--------|---------|-------------|-----------|
+| `validate_system_code` | `{code, origin}` | `{status, action}` | Validate a system code and return the action to take | No — compiled-in deterministic |
+| `check_unlock_code` | `{code, patch_name}` | `{status, message}` | Validate an unlock code for a paid patch (RSA signature) | No — compiled-in deterministic |
+| `audit_resources` | `{requested_mb}` | `{available, total, allowed}` | Check if enough resources are available for a Wide Model load | No — reads /proc/meminfo |
+| `healthcheck` | `{}` | `{status, model_loaded}` | Return whether the Raw Model is running and ready | No |
+| `version` | `{}` | `{version, model, quant}` | Return Raw Model version and loaded model info | No |
+| `validate_prompt` | `{prompt}` | `{action, modified_prompt, reason}` | Classify user prompt as ALLOW/DENY/MODIFY using GGUF inference | **Yes** — runs inference on the GGUF model via llama.cpp |
+| `validate_package_request` | `{operation, package_name, version, manifest_metadata}` | `{status, reason, command}` | Validate a package management operation against OS rules and security conditions | No — compiled-in deterministic |
 
 ### 5. Package Request Validation
 
-The Raw Model validates all package management operations initiated by the Wide Model. This is a deterministic compiled-in check — no NN inference is involved.
+The Raw Model validates all package management operations initiated by the Wide Model. This is a **compiled-in deterministic check** — it does **not** use the GGUF model or any NN inference. The GGUF is only used for `validate_prompt` classification (see [GGUF Model Usage](#gguf-model-usage)).
 
 #### Validation Rules
 
@@ -314,17 +319,20 @@ The Raw Model validates all package management operations initiated by the Wide 
 - On exceed: return denied with remaining cooldown time
 - Counter stored in-memory by the Raw Model (no persistence needed — a restart resets the counter, which is acceptable for rate limiting)
 
-### LLM Integration
+### GGUF Model Usage
 
-The Raw Model uses the same Go+llama.cpp bindings as coginfer but with a stripped-down interface:
+The Raw Model loads a small GGUF at startup via the llama.cpp CGo backend. This model serves a single purpose: **classifying user prompts** in the `validate_prompt` RPC.
 
 ```
 llama.cpp CGo bindings
-  → Load model at startup
-  → Inference on demand (single-prompt, no streaming)
+  → Load model at startup (verifyModel: backend.Load)
+  → Inference on demand via classifyPrompt (backend.Generate)
   → Unload only on shutdown
 ```
 
+- `verifyModel()` is called at startup — if the GGUF cannot be loaded, the system halts with `"System halted. Please reflash firmware."`
+- `classifyPrompt()` runs inference with temperature=0 to classify the input as ALLOW, DENY, or MODIFY
+- The GGUF is **not** used for any other RPC — system codes, unlock codes, resource audits, and package validation all use compiled-in deterministic rules
 - No streaming — all inference is request-response
 - No chat history — stateless, each call is independent
 - No model swapping — single model loaded at boot, never changed
@@ -336,10 +344,10 @@ llama.cpp CGo bindings
 1. Kernel boots, mounts read-only partitions
 2. /etc/inittab spawns cognitiveosd as PID 1
 3. cognitiveosd spawns /cognitiveos/bin/cograw
-4. cograw loads /cognitiveos/models/raw/raw-model.gguf
+4. cograw loads /cognitiveos/models/raw/raw-model.gguf into llama.cpp backend (`verifyModel`)
 5. cograw opens Unix socket /cognitiveos/run/raw.sock
-6. cograw opens /dev/input/event* devices, starts evdev monitor
-7. cograw spawns getty on /dev/ttyAMA0 for serial backdoor
+6. cograw opens /dev/input/event* devices, starts evdev monitor *(planned, see ADR-003)*
+7. cograw spawns getty on /dev/ttyAMA0 for serial backdoor *(planned, see ADR-003)*
 8. cognitiveosd connects to raw.sock, verifies healthcheck
 9. cognitiveosd spawns MCP servers and Wide Model (if configured)
 10. System is ready
