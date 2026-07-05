@@ -331,7 +331,7 @@ Current resource snapshot.
 
 #### `wide_model_load` (daemon → inference)
 
-Request to load a Wide Model.
+Request to load a Wide Model. May be triggered by initial boot, a `wake` system code, or a Raw Model routing hint (see [Multi-Model Routing](#multi-model-routing)).
 
 ```json
 {
@@ -406,6 +406,30 @@ When inference receives a load request but resources are tight, it initiates neg
    - If resources sufficient: `wide_model_loaded` with `status: "ok"`
    - If resources insufficient but can free (e.g., kill non-essential patches): `{"type": "negotiate", "payload": {"can_free_mb": 1024, "by_killing": ["optional-patch"]}}`
    - If resources insufficient and cannot free: `wide_model_loaded` with `status: "error", code: "E_INSUFFICIENT_RESOURCES"`
+
+#### Multi-Model Routing (Hot‑Swap)
+
+The daemon dynamically selects which Wide Model to load based on the Raw Model's routing hint. Flow:
+
+1. Daemon sends `validate_prompt` with `routing_hints` — a map of all installed model_ids to their tags
+2. Raw Model classifies the prompt and may return a `model` field in the response
+3. If `model != ""` and differs from the currently loaded model:
+   - Daemon sends `wide_model_unload` to inference
+   - Daemon sends `wide_model_load` with the new model's GGUF path
+   - Daemon merges system prompts (base → patches → model prompt) and sets as system prompt
+4. If `model == ""` or matches the current model: no action
+
+The daemon builds the model registry from installed `.cgp` manifests at startup and updates it on package install/remove:
+
+```go
+type ModelRegistryEntry struct {
+    ModelID string
+    Tags    []string
+    GGUFFilePath string
+}
+```
+
+The model registry is serialized as `routing_hints` and passed to `validate_prompt` on every prompt.
 
 ### 7. Status and Health
 
@@ -509,12 +533,13 @@ The validated namespaces table is maintained by the daemon and is not configurab
 2. Creates `/cognitiveos/run/` directory (tmpfs)
 3. Opens Unix socket at `/cognitiveos/run/daemon.sock`
 4. Runs initial hardware audit → writes `/cognitiveos/audit/current.json`
-5. Loads Raw Model (from `/cognitiveos/models/raw/`)
+5. Loads Raw Model (from `config.toml` `[raw_model].model` path)
 6. Scans `/cognitiveos/patches/` for installed patches
-7. Spawns MCP servers for each installed patch's `runtime.mcp_servers`
-8. Loads Wide Model (from `/cognitiveos/models/wide/active/`)
-9. Sends `output_deliver` to cli: "CognitiveOS ready"
-10. Enters main event loop
+7. Builds model registry from installed `.cgp` manifests (`brain.wide_model.routing`)
+8. Spawns MCP servers for each installed patch's `runtime.mcp_servers`
+9. Loads Wide Model (fallback: scan `/cognitiveos/models/wide/active/`; preferred: model registry entry)
+10. Sends `output_deliver` to cli: "CognitiveOS ready"
+11. Enters main event loop
 
 ## Shutdown Sequence
 
