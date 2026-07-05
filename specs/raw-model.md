@@ -44,6 +44,35 @@ The Raw Model is the firmware-level inference engine in CognitiveOS. It is the a
 
 ## Raw Model Responsibilities
 
+### 0. Physical Backdoor Shell Supervision
+
+The Raw Model monitors physical keyboard input for backdoor combos and spawns root shells on demand. This is responsibility **zero** — it runs before any other service, ensuring the backdoor is available even if the AI is compromised.
+
+See [ADR-003](../adr/ADR-003-backdoor-shell.md) for the full specification.
+
+#### Evdev Keyboard Monitoring
+
+- Opens `/dev/input/event*` devices at startup
+- Watches `/dev/input/` with `inotify` for hotplug (USB keyboard after boot)
+- Ignores virtual input devices (`ID_BUS=VIRTUAL`) to prevent AI injection
+- Implements a key sequence state machine for each combo
+- On combo match: activates backdoor on both channels
+
+#### Backdoor Channel Activation
+
+**VT2 shell** — Calls `ioctl VT_ACTIVATE` to switch the display to VT2, spawns `/bin/sh` as root. On shell exit, switches back to VT1 (TUI).
+
+**Serial shell** — Ensures `getty` or a Raw Model-spawned shell is running on `/dev/ttyAMA0`. This channel requires no combo — any serial connection gets a root shell (physical access to UART pins implies authority).
+
+#### AI Isolation
+
+The Wide Model, MCP servers, and all other untrusted processes cannot:
+- Access `/dev/input/event*` (seccomp + permissions)
+- Call `ioctl` on VT devices (seccomp)
+- Access `/dev/ttyAMA0` (seccomp + permissions)
+- Write to `/dev/uinput` (seccomp)
+- Read `/cognitiveos/logs/raw/` (permissions)
+
 ### 1. System Code Validation
 
 The Raw Model holds the five system codes in a compiled-in lookup table. Codes are never written to the filesystem.
@@ -162,7 +191,9 @@ The Raw Model is baked into the distribution image at build time — it is not d
 - Started by `cognitiveosd` at boot (before any MCP servers or Wide Model)
 - Runs as `root` — drop privileges not needed since it is the trusted supervisor
 - Always-on: never terminates unless the system shuts down
-- Single-threaded, non-blocking I/O loop
+- Two goroutines:
+  - **Main loop**: JSON-RPC server on Unix socket (system codes, unlock, audit)
+  - **Evdev monitor**: reads keyboard input, detects backdoor combos, spawns shells
 - Memory footprint: model size + ~200 MB overhead
 
 ### Transport Protocol
@@ -236,9 +267,11 @@ llama.cpp CGo bindings
 3. cognitiveosd spawns /cognitiveos/bin/cograw
 4. cograw loads /cognitiveos/models/raw/raw-model.gguf
 5. cograw opens Unix socket /cognitiveos/run/raw.sock
-6. cognitiveosd connects to raw.sock, verifies healthcheck
-7. cognitiveosd spawns MCP servers and Wide Model (if configured)
-8. System is ready
+6. cograw opens /dev/input/event* devices, starts evdev monitor
+7. cograw spawns getty on /dev/ttyAMA0 for serial backdoor
+8. cognitiveosd connects to raw.sock, verifies healthcheck
+9. cognitiveosd spawns MCP servers and Wide Model (if configured)
+10. System is ready
 ```
 
 ## Future: Biometric Attestation
@@ -264,6 +297,7 @@ This is documented separately in the [Ephemeral Identity spec](ephemeral-identit
 | **Auditability** | All code validation attempts logged to `/cognitiveos/logs/raw/` |
 | **Cooldown enforcement** | 5 failed unlock attempts → 5-minute lockout, logged |
 | **Physical override** | Reset/Security codes require physical button combo |
+| **Backdoor shell isolation** | Evdev monitoring in firmware; keyboard combos compiled-in; shell channels blocked from AI by seccomp + permissions |
 
 ## See Also
 
@@ -272,3 +306,4 @@ This is documented separately in the [Ephemeral Identity spec](ephemeral-identit
 - [Security Model](security-model.md) — trust boundaries and isolation
 - [Inference API](inference-api.md) — Wide Model inference (coginfer)
 - [Ephemeral Identity](ephemeral-identity.md) — long-term biometric vision
+- [ADR-003](../adr/ADR-003-backdoor-shell.md) — physical backdoor shell specification
