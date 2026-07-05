@@ -250,6 +250,52 @@ The `RESET` system code **cannot** be triggered by software alone. It requires:
 
 This ensures a compromised Wide Model cannot wipe itself and cover its tracks.
 
+## Physical Backdoor Shell
+
+CognitiveOS provides two independent physical backdoor shells for recovery and offline administration. Both are triggered by keyboard combos intercepted by the Raw Model at the kernel input layer — the AI cannot detect, access, or block them.
+
+### Backdoor A — VT Switch
+
+| Property | Value |
+|----------|-------|
+| Channel | `/dev/tty2` (dedicated Linux VT) |
+| Trigger | Keyboard combo → Raw Model reads from `evdev` → `ioctl VT_ACTIVATE` |
+| Return | `exit` or `Ctrl+D` switches back to the TUI VT |
+| AI visibility | `ioctl VT_ACTIVATE` blocked by seccomp; AI communicates via sockets, not terminals |
+
+### Backdoor B — Serial Console
+
+| Property | Value |
+|----------|-------|
+| Channel | `/dev/ttyAMA0` (UART on GPIO 14/15) |
+| Trigger | Same keyboard combo, or any serial keypress |
+| Shell | Raw Model spawns `/bin/sh` or `getty` on the serial device |
+| AI visibility | `/dev/ttyAMA0` blocked by seccomp and filesystem permissions |
+
+### Trigger Combos
+
+All combos trigger both backdoors simultaneously. Compiled into the Raw Model firmware (not modifiable by software):
+
+1. `Ctrl+Alt+Backspace`
+2. `Alt+PrintScreen+K`
+3. `Ctrl+Alt+Del` / serial break
+4. `ScrollLock` ×3 within 2 seconds
+5. `` Super+` ``
+
+### Why the AI Cannot Access the Backdoor
+
+| Attempt | Why it fails |
+|---------|-------------|
+| Inject keystrokes | AI produces text via daemon socket, not keyboard input; `uinput` is blocked by seccomp |
+| Switch VTs | `ioctl VT_ACTIVATE` is blocked by seccomp |
+| Read evdev | `/dev/input/event*` is root-only (`0600`) and blocked by seccomp |
+| Write to VT2 | Daemon owns VTs; AI has no path to write to them |
+| Read serial | `/dev/ttyAMA0` is root-only and blocked by seccomp |
+| Read backdoor log | `/cognitiveos/logs/raw/` is root-only; AI runs as `widemodel` |
+| Change combos | Combos are compiled into the Raw Model binary, not stored in a file |
+
+See [ADR-003](../adr/ADR-003-backdoor-shell.md) for the full specification.
+
 ## Summary of Trust Assumptions
 
 | Component | Trust model | Rationale |
@@ -262,4 +308,5 @@ This ensures a compromised Wide Model cannot wipe itself and cover its tracks.
 | MCP servers | Untrusted | Arbitrary code from .cgp patches |
 | .cgp patches | Untrusted | From unknown authors, verified by checksum only |
 | Registry | Semi-trusted | Source of truth for checksums, unlock codes |
+| Human (backdoor shell) | Trusted for root shell | Physical access implies authority — keyboard combo required |
 | Human (code entry) | Trusted for codes | Physical access implies authority |
