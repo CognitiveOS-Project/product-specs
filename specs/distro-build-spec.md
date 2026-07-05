@@ -108,7 +108,7 @@ These components are compiled and injected into the overlay:
 | network-mcp | core-mcp-bridges | `network-mcp` binary | `/usr/local/lib/cognitiveos/bridges/` |
 | gpio-mcp | core-mcp-bridges | `gpio-mcp` binary | `/usr/local/lib/cognitiveos/bridges/` |
 | serial-mcp | core-mcp-bridges | `serial-mcp` binary | `/usr/local/lib/cognitiveos/bridges/` |
-| Raw Model | (model file) | `raw-model.gguf` | `/cognitiveos/models/raw/` |
+| Raw Model | (model file) | `raw-model.gguf` | `/cognitiveos/models/raw/` | Used by cograw for `validate_prompt` NN-based prompt classification; loaded into llama.cpp at boot |
 | System configs | (generated) | various | `/etc/cognitiveos/`, `/etc/inittab` |
 
 ## Overlay Structure
@@ -129,7 +129,7 @@ overlay/
 ├── cognitiveos/
 │   ├── models/
 │   │   └── raw/
-│   │       └── raw-model.gguf     # Raw Model binary
+│   │       └── raw-model.gguf     # Raw Model GGUF (loaded by cograw at boot for prompt classification)
 │   └── patches/                   # Empty directory, populated at runtime
 └── usr/
     └── local/
@@ -216,7 +216,11 @@ cp build/bin/network-mcp       overlay/usr/local/lib/cognitiveos/bridges/
 cp build/bin/gpio-mcp          overlay/usr/local/lib/cognitiveos/bridges/
 cp build/bin/serial-mcp        overlay/usr/local/lib/cognitiveos/bridges/
 
-cp build/raw-model.gguf        overlay/cognitiveos/models/raw/
+# Download raw model GGUF via cpm download-weights
+# <model-id> is the Hugging Face repo + filename (e.g., "CognitiveOS/raw-model-v1")
+build/bin/cpm download-weights <model-id> --kind raw --output overlay/cognitiveos/models/raw/raw-model.gguf
+chmod 0400 overlay/cognitiveos/models/raw/raw-model.gguf
+chown root:root overlay/cognitiveos/models/raw/raw-model.gguf
 cp configs/inittab             overlay/etc/inittab
 cp configs/config.toml         overlay/etc/cognitiveos/
 cp configs/registries.toml     overlay/etc/cognitiveos/
