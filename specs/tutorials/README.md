@@ -22,6 +22,7 @@ Real-world examples showcasing the CognitiveOS package ecosystem.
 | [Systems Integrator](systems-integrator.md) | `full` stack | Factory automation: PLC bridge + voice UI + sensor node firmware, air-gapped |
 | [AI Rover](ai-rover.md) | `mcp-bridge` | AI-controlled robot: GPIO motor control, distance sensing, voice commands, emergency shutdown |
 | [AI Companion](ai-companion.md) | multi-package | J.A.R.V.I.S.-style ambient AI: voice personality, workspace control, HUD, proactive secretary — 4 coordinated packages |
+| [Download Weights](download-weights.md) | — | Downloading GGUF/safetensors models directly from Hugging Face Hub with `cpm download-weights` |
 
 ## How CognitiveOS Makes These Possible
 
