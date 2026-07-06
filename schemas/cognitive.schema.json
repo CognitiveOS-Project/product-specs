@@ -143,23 +143,23 @@
             "parameters": {
               "$ref": "#/$defs/brain_parameters"
             },
-            "routing": {
-              "type": "object",
-              "description": "Routing hints for the Raw Model to match prompts against installed models",
-              "properties": {
-                "model_id": {
-                  "type": "string",
-                  "description": "Unique model identifier used by the Raw Model routing hint (e.g. gemma4:2b, llama3:8b)"
-                },
-                "tags": {
-                  "type": "array",
-                  "description": "Classification tags the Raw Model matches against prompt intent (e.g. [\"code\", \"math\"], [\"vision\", \"image\"])",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
+"routing": {
+  "type": "object",
+  "description": "Model selection hints for the daemon. Declares what model this skill prefers; the daemon builds a registry from all installed manifests and routes prompts accordingly",
+  "properties": {
+    "model_id": {
+      "type": "string",
+      "description": "Unique model identifier for the daemon's model registry (e.g. gemma4:2b, deepseek-coder:6.7b)"
+    },
+    "tags": {
+      "type": "array",
+      "description": "Classification tags describing when this model should be used (e.g. [\"code\", \"math\"], [\"vision\", \"image\"], [\"fast\", \"low-ram\"])",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
           }
         },
         "parameters": {
@@ -217,14 +217,14 @@
           "type": "boolean",
           "description": "Whether this patch runs as a background service (always-listening)"
         },
-        "capabilities": {
-          "type": "array",
-          "description": "Declared runtime capabilities for capability-based routing and dependency resolution",
-          "items": {
-            "type": "string",
-            "pattern": "^[a-z][a-z0-9._-]+$"
-          }
-        }
+"capabilities": {
+  "type": "array",
+  "description": "Declared functional capabilities for package discovery. Enables registry search/filtering by function. Does not affect runtime tool routing — that is handled by the daemon's MCP tool registry",
+  "items": {
+    "type": "string",
+    "pattern": "^[a-z][a-z0-9._-]+$"
+  }
+}
       }
     }
   },
