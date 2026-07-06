@@ -76,7 +76,8 @@ Search for packages.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `q` | string | — | Search query (matches name, description, tags) |
+| `q` | string | — | Search query (matches name, description, tags, capabilities) |
+| `capability` | string | — | Filter by exact capability string (e.g., `display.render_image`). Returns packages whose `runtime.capabilities` array includes the value |
 | `exact` | boolean | false | If true, match name exactly |
 | `license` | string | — | Filter by SPDX license identifier |
 | `min_ram_mb` | integer | — | Minimum RAM requirement |
@@ -101,6 +102,11 @@ Search for packages.
         "min_ram_mb": 2048,
         "min_storage_mb": 150
       },
+      "capabilities": [
+        "com.cognitiveos.email.send",
+        "com.cognitiveos.email.read",
+        "com.cognitiveos.email.search"
+      ],
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "published_at": "2026-06-23T14:30:00Z",
       "downloads": 142
@@ -235,6 +241,7 @@ Content-Type: application/json
 | `download_url` | string | Yes | Canonical download URL for the `.cgp` archive |
 | `sha256` | string | Yes | SHA-256 hex digest of the full `.cgp` archive |
 | `tags` | array[string] | No | Tags for discovery |
+| `capabilities` | array[string] | No | Capability strings from `runtime.capabilities` for functional discovery. Published packages are searchable by these values via the `capability` filter parameter |
 | `manifest` | object | Yes | Full parsed `cognitive.json` from the archive |
 
 #### Validation (A1-A10)

@@ -102,7 +102,14 @@ For large models where weights are downloaded from a remote source at install ti
 | `adapter` | string | no | Path to LoRA adapter or quantized weights file inside the archive (.gguf) |
 | `weights` | object | no | Weight source configuration (typically `weights.remote` for downloaded weights) |
 | `parameters` | object | no | Inference parameters (overrides `brain.parameters` for this model) |
+| `routing` | object | no | Model selection hints for the daemon. Declares what model this skill prefers; the daemon builds a registry from all installed manifests and sends routing_hints to the Raw Model's validate_prompt RPC for prompt classification |
 
+#### `brain.wide_model.routing` Object
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `model_id` | string | **yes** | Unique model identifier used by the daemon's model registry (e.g. `gemma4:2b`, `deepseek-coder:6.7b`). The daemon includes this in `routing_hints` sent to the Raw Model for prompt classification |
+| `tags` | array of string | no | Classification tags describing when this model should be used (e.g. `["code", "math"]`, `["vision", "image"]`, `["fast", "low-ram"]`). The daemon matches these against prompt intent via the Raw Model's `validate_prompt` RPC |
 ### `brain.parameters` Object
 
 Inference parameters shared across models. Each model subtype can override individual values.
@@ -144,7 +151,7 @@ Runtime configuration for MCP servers and lifecycle management.
 | `tools_root` | string | no | Path to tools directory. Default: `./tools` |
 | `mcp_servers` | array | no | MCP server definitions to spawn |
 | `background` | boolean | no | Whether this patch runs as a background service (always-listening) |
-| `capabilities` | array | no | Declared runtime capabilities for capability-based routing and dependency resolution |
+| `capabilities` | array | no | Declared functional capabilities for package discovery. Enables the registry to return this package when searching by function (e.g., `cpm search display`). Does NOT affect runtime tool routing — that is handled by the daemon's MCP tool registry |
 
 ### `runtime.mcp_servers[]` Object
 
@@ -158,7 +165,7 @@ Runtime configuration for MCP servers and lifecycle management.
 
 ### `runtime.capabilities[]` Array
 
-Array of capability strings for routing and dependency resolution. Each string should follow reverse-domain or kebab-case convention:
+Array of capability strings for package discovery and dependency resolution. Each string should follow reverse-domain or kebab-case convention:
 
 ```
 com.cognitiveos.email.send
@@ -167,7 +174,9 @@ image-processing
 audio.transcription
 ```
 
-Capabilities enable the CognitiveOS runtime to match a patch against agentic requests without requiring explicit dependency declarations.
+Capabilities enable the registry to return this package when searching by function (e.g., `cpm search audio.transcription` finds packages that declare that capability). This is the mechanism the Wide Model uses for autonomous discovery: when it needs a function it lacks, it searches the registry for a package declaring the matching capability.
+
+Note: `runtime.capabilities` is for **discovery/install-time matching** only. Runtime tool routing is handled by the daemon's MCP tool registry — MCP servers register their individual tool names (e.g., `cognitiveos.display.render_image`) via `mcp_register`, and the daemon dispatches tool calls to the correct server directly.
 
 ---
 

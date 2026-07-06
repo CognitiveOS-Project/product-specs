@@ -142,6 +142,23 @@
             },
             "parameters": {
               "$ref": "#/$defs/brain_parameters"
+            },
+            "routing": {
+              "type": "object",
+              "description": "Model selection hints for the daemon. Declares what model this skill prefers; the daemon builds a registry from all installed manifests and sends routing_hints to the Raw Model's validate_prompt RPC for prompt classification",
+              "properties": {
+                "model_id": {
+                  "type": "string",
+                  "description": "Unique model identifier for the daemon's model registry (e.g. gemma4:2b, deepseek-coder:6.7b). The daemon includes this in routing_hints sent to the Raw Model"
+                },
+                "tags": {
+                  "type": "array",
+                  "description": "Classification tags describing when this model should be used (e.g. [\"code\", \"math\"], [\"vision\", \"image\"], [\"fast\", \"low-ram\"]). The daemon matches these against prompt intent via the Raw Model's validate_prompt RPC",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
             }
           }
         },
@@ -202,7 +219,7 @@
         },
         "capabilities": {
           "type": "array",
-          "description": "Declared runtime capabilities for capability-based routing and dependency resolution",
+          "description": "Declared functional capabilities for package discovery. Enables registry search/filtering by function. Does not affect runtime tool routing — that is handled by the daemon's MCP tool registry",
           "items": {
             "type": "string",
             "pattern": "^[a-z][a-z0-9._-]+$"

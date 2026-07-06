@@ -278,13 +278,15 @@ Size:           45 MB
 
 **Exit codes:** 0=ok, 1=not found
 
-#### `cpm search <query> [--license <spdx>] [--min-ram <mb>] [--page <n>]`
+#### `cpm search <query> [--capability <name>] [--license <spdx>] [--min-ram <mb>] [--page <n>]`
 
-Search the registry for patches.
+Search the registry for patches. When `--capability` is specified, only patches whose `runtime.capabilities` array includes the exact capability string are returned.
 
 ```bash
 cpm search email
 cpm search "image processing" --license MIT --min-ram 512
+cpm search --capability display.render_image
+cpm search photo --capability display.render_image
 ```
 
 Output:
@@ -574,10 +576,10 @@ When `--registry` is specified:
 ### API Contract
 
 cpm implements the client side of the [registry API](registry-api.md). Key interactions:
-
 **Search:**
+
 ```
-GET /v1/search?q=<query>&page=1&per_page=20
+GET /v1/search?q=<query>&capability=<capability>&page=1&per_page=20
 → 200
 {
   "results": [
@@ -586,7 +588,8 @@ GET /v1/search?q=<query>&page=1&per_page=20
       "version": "1.2.0",
       "description": "...",
       "license": "MIT",
-      "hardware_requirements": { "min_ram_mb": 2048 }
+      "hardware_requirements": { "min_ram_mb": 2048 },
+      "capabilities": ["com.cognitiveos.email.send"]
     }
   ],
   "total": 1,
