@@ -326,11 +326,12 @@ sign:           # GPG-sign all images
    a. Creates /cognitiveos/run/ directory (tmpfs)
    b. Opens Unix socket
    c. Runs initial hardware audit
-   d. Loads Raw Model from /cognitiveos/models/raw/raw-model.gguf
+   d. Loads Raw Model from config.toml `[raw_model].model` path (default /cognitiveos/models/raw/raw-model.gguf)
    e. Scans /cognitiveos/patches/ for installed patches
-   f. Reads /cognitiveos/models/wide/active/ for Wide Model
-   g. Spawns MCP servers for installed patches
-   h. Reports "CognitiveOS ready" to CLI
+   f. Builds model registry from installed .cgp manifests (`brain.wide_model.routing`)
+   g. Reads /cognitiveos/models/wide/active/ for initial Wide Model (fallback if no model registry entry)
+   h. Spawns MCP servers for installed patches
+   i. Reports "CognitiveOS ready" to CLI
 10. CLI displays idle screen: "ready"
 11. System is ready for human interaction
 ```
@@ -348,14 +349,35 @@ This copies all binaries to `/usr/local/bin/`, installs configs, and sets up the
 
 ## Versioning
 
-Distribution images are versioned as:
+Distribution images follow the naming convention:
 
 ```
-cognitiveos-<version>-<target>.iso
-cognitiveos-<version>-<target>.img
+cognitiveos-<semver>-<class>-<arch>.<ext>
 ```
 
-Where `<version>` follows SemVer (e.g., `v0.1.0`) and `<target>` is the platform (`x86_64`, `rpi4`, `rpi-zero`).
+Where:
+- `<semver>` — SemVer version (e.g., `0.1.0`, `0.1.0-rc.1`)
+- `<class>` — Hardware tier class (see [raw-model.md](raw-model.md#distro-image-variants))
+- `<arch>` — Target architecture (`x86_64`, `aarch64`, `armv7`)
+- `<ext>` — Image format (`iso`, `img`)
+
+Examples:
+```
+cognitiveos-0.1.0-standard-x86_64.iso
+cognitiveos-0.1.0-titan-aarch64.img
+cognitiveos-0.1.0-edge-armv7.img
+```
+
+### Config.toml
+
+Only `[raw_model]` is specified in config.toml — the Wide Model is chosen at runtime by the Raw Model routing hint:
+
+```toml
+[raw_model]
+model = "/cognitiveos/models/raw/raw-model.gguf"
+```
+
+There is no `[wide_model]` section. The initial Wide Model on first boot is discovered by scanning `/cognitiveos/models/wide/active/` for any `.gguf` file shipped with the image. After `.cgp` packages are installed, the model registry (built from `cognitive.json` manifests) drives model selection.
 
 Images also embed a build manifest at `/etc/cognitiveos/image-manifest.json`:
 

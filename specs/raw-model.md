@@ -169,16 +169,39 @@ Models are selected by size and quantization to match the target hardware:
 
 ## Distro Image Variants
 
-Each CognitiveOS distribution image is named after its target Raw Model:
+Distribution images follow this naming convention:
 
 ```
-cognitiveos-<model-variant>-<arch>.iso
+cognitiveos-<semver>-<class>-<arch>.<ext>
 
 Examples:
-  cognitiveos-raspberry-pi-0.5b-aarch64.iso
-  cognitiveos-x86_64-1.5b-amd64.iso
-  cognitiveos-jetson-3b-aarch64.iso
+  cognitiveos-0.1.0-standard-x86_64.iso
+  cognitiveos-0.1.0-titan-aarch64.img
+  cognitiveos-0.1.0-edge-armv7.img
 ```
+
+The class encodes the hardware tier and determines which raw model is baked at build time:
+
+| Class | Raw Model | Ships wide model? | Initial wide model source |
+|-------|-----------|-------------------|---------------------------|
+| `titan` | 235B Qwen GGUF | No | None — raw-managed, agent-triggered `.cgp` install |
+| `standard` | 1.5B GGUF | Yes | 8B Gemma 4 GGUF in `/cognitiveos/models/wide/active/` at image build time |
+| `gateway` | Compiled-in only (no GGUF) | No | Pulled from remote on first boot via first-run wizard |
+| `edge` | 0.5B GGUF | Yes | Auto-selected tiny GGUF from `/cognitiveos/models/wide/active/` directory |
+| `micro` | Compiled-in only (no GGUF) | No | Remote-only (thin client, pulls from inference proxy) |
+
+The class table is encoded in the distro build scripts. The class is not a runtime value — it determines what is baked into the image at build time.
+
+### Raw Model Boot Configuration
+
+The raw model path is read from `config.toml` at daemon boot time:
+
+```toml
+[raw_model]
+model = "/cognitiveos/models/raw/raw-model.gguf"
+```
+
+The Wide Model is **not** selected by config — it is chosen at runtime by the Raw Model routing hint (see [Multi-Model Routing](#multi-model-routing)).
 
 The Raw Model is baked into the distribution image at build time — it is not downloaded on first boot. This ensures the system can function without network connectivity.
 
@@ -246,7 +269,7 @@ JSON-RPC 2.0 over Unix socket at `/cognitiveos/run/raw.sock`.
 | `audit_resources` | `{requested_mb}` | `{available, total, allowed}` | Check if enough resources are available for a Wide Model load | No — reads /proc/meminfo |
 | `healthcheck` | `{}` | `{status, model_loaded}` | Return whether the Raw Model is running and ready | No |
 | `version` | `{}` | `{version, model, quant}` | Return Raw Model version and loaded model info | No |
-| `validate_prompt` | `{prompt}` | `{action, modified_prompt, reason}` | Classify user prompt as ALLOW/DENY/MODIFY using GGUF inference | **Yes** — runs inference on the GGUF model via llama.cpp |
+| `validate_prompt` | `{prompt, routing_hints}` | `{action, modified_prompt, reason, model}` | Classify user prompt as ALLOW/DENY/MODIFY using GGUF inference, optionally returning a model routing hint | **Yes** — runs inference on the GGUF model via llama.cpp |
 | `validate_package_request` | `{operation, package_name, version, manifest_metadata}` | `{status, reason, command}` | Validate a package management operation against OS rules and security conditions | No — compiled-in deterministic |
 
 ### 5. Package Request Validation
@@ -337,6 +360,76 @@ llama.cpp CGo bindings
 - No chat history — stateless, each call is independent
 - No model swapping — single model loaded at boot, never changed
 - Context window: 1024 tokens (small, fast)
+
+## Multi-Model Routing
+
+The Raw Model supports dynamic Wide Model routing. When the daemon sends a `validate_prompt` request, it includes a `routing_hints` map describing all installed models and their tags. The Raw Model's GGUF inference classifies the prompt and may return a `model` field identifying the best model for the task.
+
+### Flow
+
+```
+1. Daemon builds modelRegistry from installed .cgp manifests (brain.wide_model.routing)
+2. Daemon sends validate_prompt with {prompt, routing_hints: {model_id: [tags...], ...}}
+3. Raw Model classifies prompt, returns {action, modified_prompt, reason, model}
+4. If model != "":
+   a. Daemon unloads current Wide Model (if loaded)
+   b. Daemon loads the target model from its GGUF path
+   c. System prompt is merged: base_prompt → patch1_prompt → ... → model_prompt
+5. If model == "":
+   a. Daemon keeps the current Wide Model loaded
+```
+
+### Routing Hints Schema
+
+```json
+{
+  "routing_hints": {
+    "gemma4:2b": ["general", "chat"],
+    "deepseek-coder:6.7b": ["code", "math", "reasoning"],
+    "llama3:8b": ["general", "creative"]
+  }
+}
+```
+
+### Response with model routing
+
+```json
+{
+  "action": "allow",
+  "model": "deepseek-coder:6.7b"
+}
+```
+
+### Model Registry
+
+The daemon builds its model registry at startup and updates it whenever a `.cgp` package is installed or removed. Each registry entry maps a `model_id` to:
+
+- `model_id`: Unique model identifier (from `brain.wide_model.routing.model_id`)
+- `tags`: Classification tags (from `brain.wide_model.routing.tags`)
+- `gguf_path`: Resolved path to the GGUF weights file
+
+The registry is passed to the Raw Model as `routing_hints` on every `validate_prompt` call.
+
+### System Prompt Merging
+
+When a model is loaded (including hot-swap), system prompts are merged in order:
+
+1. Base system prompt (`/cognitiveos/etc/base-prompt.md`)
+2. System prompts from all installed patches with `runtime.system_prompt`, sorted by install order
+3. The target model's own system prompt (from `brain.wide_model.adapter` directory)
+
+The merged prompt is set as the Wide Model's system prompt on load.
+
+### Config Note
+
+The config.toml only contains `[raw_model]` — the wide model path is never in config:
+
+```toml
+[raw_model]
+model = "/cognitiveos/models/raw/raw-model.gguf"
+```
+
+The Wide Model is chosen at runtime by the Raw Model routing hint.
 
 ## Startup Sequence
 
