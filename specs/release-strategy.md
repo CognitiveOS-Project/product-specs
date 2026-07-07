@@ -118,21 +118,15 @@ These are **not required** — they are useful for tracking intermediate states 
 
 ## Relationship to Branch Protection
 
-Branch protection on `main` and `development` requires 1 approving review. During release promotion:
-
-1. Temporarily disable protection on `main` (or `development` if needed)
-2. Merge via PR (cherry-pick topic branch from `main`)
-3. Re-enable protection immediately after
-4. Tag after all merges are complete and protection is restored
+Branch protection on `main` requires a PR (no direct push) but does not require approving reviews (0 required). Changes flow through PRs with at least one review recommended but not mandatory.
 
 ## Release Pipeline
 
 See [git-workflow.md](../../../.opencode/instructions/git-workflow.md) for the full multi-repo release pipeline:
 
-1. Merge topic branches to `development` via PR
-2. Cherry-pick changes to `main` via topic branches from `main` (due to squash-merge history divergence)
-3. Tag all repos at the same version
-4. Verify deployment (website, docs, etc.)
+1. Merge topic branches to `main` via PR
+2. Tag all repos at the same version
+3. Verify deployment (website, docs, etc.)
 
 ## See Also
 

@@ -171,7 +171,7 @@ tty2::respawn:/sbin/getty 38400 tty2
 # Host system requirements
 - Linux (x86_64 or aarch64)
 - Docker (for cross-architecture builds)
-- Go 1.22+
+- Go 1.24+
 - make
 - git
 - Alpine mkimage tools (apk-tools-static, mkimage)
@@ -191,15 +191,17 @@ git clone https://github.com/CognitiveOS-Project/core-mcp-bridges.git
 
 #### Step 2: Compile CognitiveOS Binaries
 
+Each repo builds independently using its own `Makefile` and `scripts/build.sh`:
+
 ```bash
 for repo in cpm cognitiveosd cli inference core-mcp-bridges; do
   cd $repo
-  CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o ../build/bin/ ./cmd/...
+  make build
   cd ..
 done
 ```
 
-Binaries are statically linked (CGO_ENABLED=0) for maximum portability across architectures.
+Binaries are placed in each repo's `build/bin/` directory. The `cognitiveos-distro` repository then collects them from sibling directories during overlay assembly. Each repo manages its own build environment — Go installation, llama.cpp compilation (inference), and bridge compilation (core-mcp-bridges).
 
 #### Step 3: Prepare Overlay
 
@@ -270,13 +272,31 @@ sha256sum output/cognitiveos-*.iso > output/cognitiveos-<version>.iso.sha256
 gpg --detach-sign output/cognitiveos-*.iso
 ```
 
-## Build Scripts
+## Per-Repo Builds
 
-The `cognitiveos-distro` repo provides:
+Each Go repository is independently buildable via a consistent interface:
+
+| Repo | Makefile targets | Build output |
+|------|-----------------|--------------|
+| `cpm` | `build`, `test`, `lint`, `clean` | `build/bin/cpm` |
+| `cognitiveosd` | `build`, `test`, `lint`, `clean` | `build/bin/cognitiveosd` |
+| `cli` | `build`, `test`, `lint`, `clean` | `build/bin/cognitiveos-cli` |
+| `inference` | `build`, `test`, `lint`, `clean`, `build-llama` | `build/bin/cognitiveos-inference`, `build/bin/cograw` |
+| `core-mcp-bridges` | `build`, `test`, `lint`, `clean` | `build/bin/audio`, `build/bin/display`, `build/bin/gpio`, `build/bin/network`, `build/bin/serial`, `build/bin/package` |
+
+Each repo also provides `scripts/build.sh` as a self-contained bootstrap script (installs Go, llama.cpp, etc.) for environments without a pre-installed toolchain.
+
+### CI/CD
+
+Each Go repo has its own `.github/workflows/ci.yml` that runs `make build`, `make test`, `make lint`, and `go vet` on push/PR to `main`.
+
+## Build Scripts (Orchestrator)
+
+The `cognitiveos-distro` repo orchestrates the per-repo builds:
 
 ```
 cognitiveos-distro/
-├── Makefile              # Top-level build automation
+├── Makefile              # Top-level build automation (orchestrator)
 ├── packages.x86_64       # Package list for x86_64
 ├── packages.aarch64      # Package list for ARM64
 ├── packages.armv7        # Package list for ARMv7
@@ -286,29 +306,36 @@ cognitiveos-distro/
 │   ├── config.toml
 │   └── registries.toml
 ├── scripts/
-│   ├── build-binaries.sh   # Step 2: compile all Go binaries
+│   ├── build-binaries.sh   # Step 2: invoke each repo's make build, collect binaries
 │   ├── build-overlay.sh    # Step 3: assemble overlay
+│   ├── build-image.sh      # Step 4: x86_64 ISO / RPi image
 │   ├── build-iso.sh        # Step 4: x86_64 ISO
 │   ├── build-rpi.sh        # Step 4: RPi SD card
+│   ├── build-distro-tarball.sh  # Build portable distro tarball
 │   └── sign.sh             # Step 5: checksums + GPG
 ├── docker/
-│   └── Dockerfile.build    # Cross-compilation container
+│   ├── Dockerfile.build    # Cross-compilation container (uses per-repo Makefiles)
+│   └── Dockerfile.release  # Minimal runtime image
 └── README.md
 ```
 
 ### Makefile Targets
 
 ```makefile
-all: iso rpi
+all: iso rpi checksums sign
 
-iso:            # Build x86_64 ISO
-rpi:            # Build Raspberry Pi SD card image
-clean:          # Remove build artifacts
-distclean:      # Remove build artifacts + downloaded deps
+iso:            # Build x86_64 ISO (depends on install-local)
+rpi:            # Build Raspberry Pi SD card image (depends on install-local)
+install-local:  # Orchestrate per-repo builds + assemble overlay
+distro-tarball: # Build portable distro tarball (overlay + binaries)
 docker:         # Build the cross-compilation Docker image
 shell:          # Start an interactive shell in the build container
+docker-release: # Build Docker release image
+release:        # distro-tarball + docker-release
 checksums:      # Generate SHA-256 checksums for all images
 sign:           # GPG-sign all images
+clean:          # Remove build artifacts
+distclean:      # Remove build artifacts + downloaded deps
 ```
 
 ## First Boot Sequence
