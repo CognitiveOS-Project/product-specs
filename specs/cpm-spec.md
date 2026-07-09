@@ -346,7 +346,6 @@ cpm init everything     --template full
 **Exit codes:** 0=ok, 1=directory already exists
 
 #### `cpm verify <path>`
-
 Verify a `.cgp` archive integrity.
 
 ```bash
@@ -361,6 +360,19 @@ Checks:
 - Executables in `tools/` have valid shebangs or are ELF binaries
 
 **Exit codes:** 0=valid, 1=invalid format, 2=schema violation, 3=missing file, 4=dependency not met
+
+#### `cpm tune <name> [--background] [--epochs <n>] [--finalize] [--quantize <type>]`
+Fine-tune an installed patch using local interaction data.
+
+```bash
+cpm tune study-buddy --background
+cpm tune study-buddy --finalize --quantize Q4_K_M
+```
+
+Invokes the tuning tool specified in the patch manifest to generate a LoRA adapter. Use `--finalize` to compile and quantize the adapter for production use.
+
+**Exit codes:** 0=ok, 1=not installed, 2=insufficient data, 3=training failed, 4=tool not found
+
 
 ## Install Lifecycle (Detailed)
 
@@ -508,6 +520,23 @@ Input: "cpm install email-manager"
   3.5 Remove trash directory
   3.6 Log update to cpm.log
 ```
+
+## Tuning Lifecycle
+
+### Step 1: Trigger
+Tuning is triggered either manually via `cpm tune <name>` or automatically by `cognitiveosd` when data milestones (e.g., every 500 interactions) are reached.
+
+### Step 2: Readiness Check
+`cpm` reads the `training.data_requirements` block from the manifest. If the local interaction logs have fewer than `min_samples`, the process exits with `ERR_INSUFFICIENT_DATA`.
+
+### Step 3: Execution
+`cpm` invokes the MCP tool specified in `training.tool`. It passes hyperparameters (Rank, Alpha, Epochs) and the path to the interaction logs.
+
+### Step 4: Adapter Generation
+The training tool generates a LoRA adapter file (e.g., `user_adapter.bin`) and saves it to the `training.output_path` specified in the manifest.
+
+### Step 5: Hot-Swap
+`cpm` signals the daemon to bind the new adapter. The inference engine dynamically loads the adapter on top of the base Wide Model mid-session.
 
 ## Hardware Audit
 

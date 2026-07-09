@@ -242,6 +242,58 @@
           }
         }
       }
+    },
+    "training": {
+      "type": "object",
+      "description": "Local fine-tuning configuration for continuous learning and personalization of this patch via cpm tune",
+      "properties": {
+        "tool": {
+          "type": "string",
+          "description": "The MCP tool used to perform the fine-tuning (e.g. a Python script using PEFT/LoRA)"
+        },
+        "hyperparameters": {
+          "type": "object",
+          "description": "LoRA hyperparameters for the tuner",
+          "properties": {
+            "rank": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 256,
+              "description": "LoRA rank (r)"
+            },
+            "alpha": {
+              "type": "number",
+              "minimum": 0,
+              "description": "LoRA alpha value"
+            },
+            "epochs": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Number of training epochs"
+            },
+            "learning_rate": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Learning rate for the optimizer"
+            }
+          }
+        },
+        "data_requirements": {
+          "type": "object",
+          "description": "Constraints on when tuning should be triggered",
+          "properties": {
+            "min_samples": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Minimum database sample entries required before cpm tune allows execution"
+            }
+          }
+        },
+        "output_path": {
+          "type": "string",
+          "description": "Path relative to the patch root where the generated adapter should be stored (e.g. weights/user_adapter.bin)"
+        }
+      }
     }
   },
   "$defs": {
