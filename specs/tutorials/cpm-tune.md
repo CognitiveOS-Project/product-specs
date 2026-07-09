@@ -21,9 +21,11 @@ To support tuning, the `cognitive.json` manifest must include a `training` block
       "base_model": "llama-3-8b-gguf"
     },
     "training": {
-      "trainer_tool": "tutor-trainer",
-      "adapter_path": "adapters/personalized.bin",
-      "data_source": "/cognitiveos/data/personalized-tutor/logs",
+      "tool": "tutor-trainer",
+      "output_path": "adapters/personalized.bin",
+      "data_requirements": {
+        "min_samples": 1000
+      },
       "hyperparameters": {
         "rank": 8,
         "alpha": 16,
