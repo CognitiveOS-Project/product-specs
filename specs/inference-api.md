@@ -113,7 +113,7 @@ Download a model from a registry (or local filesystem).
 ```json
 {
   "name": "gemma-4-2b",
-  "path": "/cognitiveos/models/wide/active/gemma-4-2b-q4_k_m.gguf",
+  "path": "/cognitiveos/patches/base/weights/gemma-4-2b-q4_k_m.gguf",
   "insecure": false
 }
 ```
@@ -176,7 +176,7 @@ Detailed system status for the inference engine.
   "models_loaded": 1,
   "active_model": {
     "name": "gemma-4-2b",
-    "path": "/cognitiveos/models/wide/active/model.gguf",
+    "path": "/cognitiveos/patches/base/weights/model.gguf",
     "quantization": "q4_k_m",
     "ram_usage_mb": 2048,
     "vram_usage_mb": 1024,
@@ -231,7 +231,7 @@ When cognitiveosd requests a model load, the inference engine checks resources a
 ```
 cognitiveosd → POST /api/negotiate (or wide_model_load via socket)
   {
-    "model_path": "/cognitiveos/models/wide/active/model.gguf",
+    "model_path": "/cognitiveos/patches/base/weights/model.gguf",
     "params": { "temperature": 0.7, "num_ctx": 8192 }
   }
 ```

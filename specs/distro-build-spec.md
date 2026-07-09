@@ -356,7 +356,8 @@ distclean:      # Remove build artifacts + downloaded deps
    d. Loads Raw Model from config.toml `[raw_model].model` path (default /cognitiveos/models/raw/raw-model.gguf)
    e. Scans /cognitiveos/patches/ for installed patches
    f. Builds model registry from installed .cgp manifests (`brain.wide_model.routing`)
-   g. Reads /cognitiveos/models/wide/active/ for initial Wide Model (fallback if no model registry entry)
+    g. Reads `/cognitiveos/patches/base/weights/` for initial Wide Model (fallback if no model registry entry)
+
    h. Spawns MCP servers for installed patches
    i. Reports "CognitiveOS ready" to CLI
 10. CLI displays idle screen: "ready"
@@ -438,7 +439,7 @@ Only `[raw_model]` is specified in config.toml — the Wide Model is chosen at r
 model = "/cognitiveos/models/raw/raw-model.gguf"
 ```
 
-There is no `[wide_model]` section. The initial Wide Model on first boot is discovered by scanning `/cognitiveos/models/wide/active/` for any `.gguf` file shipped with the image. After `.cgp` packages are installed, the model registry (built from `cognitive.json` manifests) drives model selection.
+There is no `[wide_model]` section. The initial Wide Model on first boot is discovered by scanning `/cognitiveos/patches/base/weights/` for any `.gguf` file shipped with the image. After `.cgp` packages are installed, the model registry (built from `cognitive.json` manifests) drives model selection.
 
 Images also embed a build manifest at `/etc/cognitiveos/image-manifest.json`:
 

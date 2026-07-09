@@ -185,9 +185,9 @@ The class encodes the hardware tier and determines which raw model is baked at b
 | Class | Raw Model | Ships wide model? | Initial wide model source |
 |-------|-----------|-------------------|---------------------------|
 | `titan` | 235B Qwen GGUF | No | None — raw-managed, agent-triggered `.cgp` install |
-| `standard` | 1.5B GGUF | Yes | 8B Gemma 4 GGUF in `/cognitiveos/models/wide/active/` at image build time |
+| `standard` | 1.5B GGUF | Yes | 8B Gemma 4 GGUF in `/cognitiveos/patches/base/weights/` at image build time |
 | `gateway` | Compiled-in only (no GGUF) | No | Pulled from remote on first boot via first-run wizard |
-| `edge` | 0.5B GGUF | Yes | Auto-selected tiny GGUF from `/cognitiveos/models/wide/active/` directory |
+| `edge` | 0.5B GGUF | Yes | Auto-selected tiny GGUF from patched weights directories |
 | `micro` | Compiled-in only (no GGUF) | No | Remote-only (thin client, pulls from inference proxy) |
 
 The class table is encoded in the distro build scripts. The class is not a runtime value — it determines what is baked into the image at build time.

@@ -39,7 +39,7 @@ To support tuning, the `cognitive.json` manifest must include a `training` block
       {
         "name": "tutor-trainer",
         "command": "./tools/mcp-trainer",
-        "args": ["--model-path", "/cognitiveos/models/wide/active/base.gguf"]
+        "args": ["--model-path", "/cognitiveos/patches/personalized-tutor/weights/base.gguf"]
       }
     ]
   }
@@ -84,8 +84,8 @@ curl http://localhost:11434/cognitiveos/status
   "status": "ready",
   "models_loaded": 1,
   "active_model": {
-    "name": "/cognitiveos/models/wide/active/base.gguf + adapter(/cognitiveos/patches/personalized-tutor/adapters/personalized.bin)",
-    "path": "/cognitiveos/models/wide/active/base.gguf",
+    "name": "/cognitiveos/patches/personalized-tutor/weights/base.gguf + adapter(/cognitiveos/patches/personalized-tutor/adapters/personalized.bin)",
+    "path": "/cognitiveos/patches/personalized-tutor/weights/base.gguf",
     "ram_usage_mb": 4500
   }
 }

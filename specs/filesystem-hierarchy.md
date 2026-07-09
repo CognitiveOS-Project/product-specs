@@ -16,19 +16,14 @@ The CognitiveOS filesystem is organized around two principles:
 ├── models/
 │   ├── raw/                    # Raw Model (read-only, firmware)
 │   │   └── raw-model.gguf      # Compiled firmware model
-│   └── wide/                   # Wide Model files (writable)
-│       ├── active/             # Currently active Wide Model
-│       │   ├── model.gguf
-│       │   └── manifest.json   # Metadata (source, version, params)
-│       └── staged/             # Downloaded but not yet activated
-│           └── <version>/
-│               ├── model.gguf
-│               └── manifest.json
+│   └── wide/                   # Global base models (writable)
 ├── patches/                    # Installed .cgp patches (writable)
 │   ├── <package-name>/         # One directory per installed patch
 │   │   ├── cognitive.json     # Manifest (copied from archive)
 │   │   ├── prompts/
 │   │   │   └── system.md
+│   │   ├── weights/            # Model weights for this patch
+│   │   │   └── <model>.gguf
 │   │   └── tools/
 │   │       └── mcp-server-*
 │   └── <another-package>/

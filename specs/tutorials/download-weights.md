@@ -18,13 +18,13 @@ Output:
 ```
 Found: https://huggingface.co/unsloth/SmolLM2-135M-Instruct-GGUF/resolve/main/SmolLM2-135M-Instruct-F16.gguf
 File:  SmolLM2-135M-Instruct-F16.gguf
-Dest:  /cognitiveos/models/wide/active/SmolLM2-135M-Instruct-F16.gguf
+Dest:  /cognitiveos/patches/base/weights/SmolLM2-135M-Instruct-F16.gguf
 Downloading...
 100% (258258240 / 258258240 bytes)
-✓ Downloaded to /cognitiveos/models/wide/active/SmolLM2-135M-Instruct-F16.gguf
+✓ Downloaded to /cognitiveos/patches/base/weights/SmolLM2-135M-Instruct-F16.gguf
 ```
 
-The daemon picks up the new model automatically on next startup — it scans `/cognitiveos/models/wide/active/` for `.gguf` and `.safetensors` files.
+The daemon picks up the new model automatically on next startup — it scans `/cognitiveos/patches/base/weights/` for `.gguf` and `.safetensors` files.
 
 ## Key Concepts
 
@@ -40,7 +40,7 @@ Additional providers (models.dev, etc.) will be added in future releases.
 
 | `--kind` | Destination | Overwrite Policy |
 |----------|-------------|------------------|
-| `wide` | `/cognitiveos/models/wide/active/<filename>.gguf` | Always overwrites |
+| `wide` | `/cognitiveos/patches/base/weights/<filename>.gguf` | Always overwrites |
 | `raw` | `/cognitiveos/models/raw/raw-model-<name>.gguf` | Skips if file exists |
 
 The **wide model** is the general-purpose LLM loaded by the inference engine. The **raw model** is the system's firmware guardrail — a fixed single-file model that cannot be hot-reloaded, so it is never overwritten without explicit removal first.
@@ -77,7 +77,7 @@ Example output:
 ```
 Found: https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct-GGUF/resolve/main/qwen2.5-coder-3b-instruct-q4_k_m.gguf
 File:  qwen2.5-coder-3b-instruct-q4_k_m.gguf
-Dest:  /cognitiveos/models/wide/active/qwen2.5-coder-3b-instruct-q4_k_m.gguf
+Dest:  /cognitiveos/patches/base/weights/qwen2.5-coder-3b-instruct-q4_k_m.gguf
 ```
 
 Run without `--dry-run` to download.
@@ -127,7 +127,7 @@ cpm install gemma-4-2b
 During install, cpm will:
 1. Validate the manifest schema
 2. Search Hugging Face Hub for the matching model file
-3. Download to `/cognitiveos/models/wide/active/gemma-4-2b-Q4_K_M.gguf`
+3. Download to `/cognitiveos/patches/base/weights/gemma-4-2b-Q4_K_M.gguf`
 4. Verify SHA-256 if provided in the manifest
 5. Proceed with the rest of the install (hardware audit, MCP server spawn, tool registration)
 
@@ -154,4 +154,4 @@ cpm download-weights --kind wide --type gguf Llama-3.2-1B-Instruct
 cpm download-weights --kind wide --type gguf Llama-3.2-1B-Instruct-Q8_0
 ```
 
-The daemon loads the first `.gguf` found in `/cognitiveos/models/wide/active/`. Replace a model by downloading a new one — the old file remains but won't be loaded unless it's the first alphabetically.
+The daemon loads the first `.gguf` found in `/cognitiveos/patches/base/weights/`. Replace a model by downloading a new one — the old file remains but won't be loaded unless it's the first alphabetically.

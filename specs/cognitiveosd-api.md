@@ -338,7 +338,7 @@ Request to load a Wide Model. May be triggered by initial boot, a `wake` system 
   "type": "wide_model_load",
   "from": "cognitiveosd",
   "payload": {
-    "model_path": "/cognitiveos/models/wide/active/model.gguf",
+    "model_path": "/cognitiveos/patches/base/weights/model.gguf",
     "params": {
       "temperature": 0.7,
       "num_ctx": 8192,
@@ -537,7 +537,7 @@ The validated namespaces table is maintained by the daemon and is not configurab
 6. Scans `/cognitiveos/patches/` for installed patches
 7. Builds model registry from installed `.cgp` manifests (`brain.wide_model.routing`)
 8. Spawns MCP servers for each installed patch's `runtime.mcp_servers`
-9. Loads Wide Model (fallback: scan `/cognitiveos/models/wide/active/`; preferred: model registry entry)
+9. Loads Wide Model (preferred: model registry entry; fallback: scan `/cognitiveos/patches/**/weights/`)
 10. Sends `output_deliver` to cli: "CognitiveOS ready"
 11. Enters main event loop
 

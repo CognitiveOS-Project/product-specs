@@ -99,7 +99,7 @@ sudo dd if=cognitiveos-rpi-aarch64.img of=/dev/sdX bs=4M status=progress
 2. `cognitiveosd` daemon starts, opens `/cognitiveos/run/daemon.sock`
 3. Daemon spawns core MCP bridges: `gpio-mcp`, `audio-mcp`, `display-mcp`, `network-mcp`, `serial-mcp`
 4. Daemon runs hardware audit (RAM, storage, CPU cores)
-5. Daemon loads the Wide Model from `/cognitiveos/models/wide/active/`
+5. Daemon loads the Wide Model from `/cognitiveos/patches/base/weights/`
 6. `cognitiveos-cli` connects to daemon socket, displays the TUI
 7. **"CognitiveOS ready"** appears on screen
 
@@ -381,7 +381,7 @@ Install a model:
 cpm install qwen2.5-1.5b --template gguf-model
 # Or pull directly
 curl -X POST http://127.0.0.1:11434/api/pull \
-  -d '{"name": "qwen2.5-1.5b-q4_k_m.gguf", "path": "/cognitiveos/models/wide/active/"}'
+  -d '{"name": "qwen2.5-1.5b-q4_k_m.gguf", "path": "/cognitiveos/patches/base/weights/"}'
 ```
 
 ## Extensions

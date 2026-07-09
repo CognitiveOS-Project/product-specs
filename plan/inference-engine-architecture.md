@@ -283,7 +283,7 @@ import "C"
 |-----------------|----------------|
 | `POST /api/generate` | `server.go` handler → `backend.Generate()` → CGo bridge → `llama_eval()` loop |
 | `POST /api/chat` | Same as generate, with system prompt prepended to chat history |
-| `GET /api/tags` | Pure Go — reads `/cognitiveos/models/wide/active/*.gguf` |
+| `GET /api/tags` | Pure Go — reads `/cognitiveos/patches/**/weights/*.gguf` |
 | `GET /cognitiveos/status` | Calls `backend.Stats()` → reports RAM/VRAM from CGo context |
 | `GET /cognitiveos/capabilities` | Pure Go — probes hardware, reports backend availability |
 | Resource negotiation | `server.go` checks `backend.Stats()` RAM before load; alternatives in response |

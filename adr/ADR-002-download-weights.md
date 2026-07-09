@@ -39,7 +39,7 @@ Uses `GET https://huggingface.co/api/models?library=gguf&search=<query>&sort=dow
 | `--kind` | Destination | Overwrite |
 |----------|-------------|-----------|
 | `raw` | `/cognitiveos/models/raw/raw-model-<name>.gguf` | Never (skip if exists) |
-| `wide` | `/cognitiveos/models/wide/active/<filename>.gguf` | Always (re-download) |
+| `wide` | `/cognitiveos/patches/<pkg>/weights/<filename>.gguf` | Always (re-download) |
 
 The raw model uses a named pattern (`raw-model-<name>.gguf`) since raw models are single-file and cannot be hot-reloaded — skip prevents accidental overwrite. Wide models use the filename from the download candidate and can be overwritten (the daemon picks the first `.gguf` in the directory at startup).
 

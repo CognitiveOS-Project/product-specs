@@ -40,7 +40,7 @@ A flashcard and quiz generator backed by a locally-downloaded embedding model. D
       {
         "name": "embedding-server",
         "command": "./tools/mcp-embed",
-        "args": ["--model", "/cognitiveos/models/wide/active/all-MiniLM-L6-v2-Q4_K_M.gguf"]
+        "args": ["--model", "/cognitiveos/patches/study-buddy/weights/all-MiniLM-L6-v2-Q4_K_M.gguf"]
       }
     ],
     "capabilities": ["study.flashcard", "study.quiz", "study.embed"]
@@ -89,7 +89,7 @@ This is the most complex install flow, showcasing multiple integration points:
 2. **Hardware audit** — 2 GB RAM, 500 MB storage — if the system doesn't have it, cpm rejects the install
 3. **Weight download** — cpm downloads the 24 MB GGUF embedding model from Hugging Face (`source: "huggingface"`, `model_id: "sentence-transformers/all-MiniLM-L6-v2"`)
 4. **Integrity check** — SHA-256 of downloaded file is compared against `checksum.sha256`
-5. **Extraction** — archive contents go to `/cognitiveos/patches/study-buddy/`, model weights go to `/cognitiveos/models/wide/active/`
+5. **Extraction** — archive contents go to `/cognitiveos/patches/study-buddy/`, model weights go to `/cognitiveos/patches/study-buddy/weights/`
 6. **Daemon loads the embedding model** — `wide_model_load` message sent to inference engine
 7. **MCP server spawns** — `embedding-server` loads the model and registers tools
 8. **Wide Model prompt chain** — the study buddy system prompt is injected
