@@ -328,10 +328,10 @@ iso:            # Build x86_64 ISO (depends on install-local)
 rpi:            # Build Raspberry Pi SD card image (depends on install-local)
 install-local:  # Orchestrate per-repo builds + assemble overlay
 distro-tarball: # Build portable distro tarball (overlay + binaries)
-docker:         # Build the cross-compilation Docker image
+docker:         # Build the cross-compilation Docker image (cognitiveos-builder)
+docker.release: # Build Docker release image (cognitiveos:VERSION)
 shell:          # Start an interactive shell in the build container
-docker-release: # Build Docker release image
-release:        # distro-tarball + docker-release
+release:        # distro-tarball + docker.release
 checksums:      # Generate SHA-256 checksums for all images
 sign:           # GPG-sign all images
 clean:          # Remove build artifacts
@@ -373,6 +373,40 @@ make install-local
 ```
 
 This copies all binaries to `/usr/local/bin/`, installs configs, and sets up the runtime directories. Useful for testing on a real Alpine installation or Docker container.
+
+## Docker Image
+
+A lightweight Docker image is provided for development, testing, and headless deployment:
+
+```bash
+# Build the release image
+make docker.release
+
+# Run — full TUI experience
+docker run -it cognitiveos:0.1.0
+```
+
+The Docker image uses the same overlay as the bootable ISO but skips the mkimage step. All binaries, configs, and default directory structure are baked in.
+
+### Entrypoint
+
+The image entrypoint is `/usr/local/bin/cognitiveos-cli`. On startup the CLI:
+
+1. Checks for the daemon Unix socket at `/cognitiveos/run/daemon.sock`
+2. If absent, spawns `cognitiveosd` as a child subprocess
+3. Waits up to 15 seconds for the socket to appear
+4. Connects and renders the Bubble Tea TUI
+
+No shell scripts, init systems, or supervisor processes are involved — the CLI manages the daemon lifecycle directly. When the CLI exits (Ctrl+D), it signals the daemon child and waits for clean shutdown.
+
+### Limitations
+
+- The Docker image uses `coginfer --backend mock` by default — no real LLM runs inside the container
+- No Raw Model GGUF is bundled (no `/cognitiveos/models/raw/raw-model.gguf`)
+- Hardware audit reports container-constrained resources (no real GPU, NPU, or peripheral access)
+- The Wide Model must be remote (via network-accessible inference endpoint) or pulled at runtime
+
+Despite these limitations, the full TUI, daemon state machine, MCP tool registration, and message protocol work identically to a bootable image.
 
 ## Versioning
 
