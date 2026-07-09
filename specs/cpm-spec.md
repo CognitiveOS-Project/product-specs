@@ -148,7 +148,7 @@ The existing [install lifecycle](#install-lifecycle-detailed) gains a new resolu
 Step 0: Resolve Source (updated)
   0.1 Parse target string through Registry Dispatcher
   0.2 Route to appropriate protocol handler
-  0.3 Download archive from source
+  0.3 Download archive from source. For registry downloads, cpm includes host environment metadata (`os` and `arch`) to resolve the correct variant.
   0.4 Normalize archive (unpack → detect → validate)
   0.5 Continue to existing lifecycle (Step 2: Parse and Validate)
 ```
@@ -515,6 +515,8 @@ The hardware audit checks these resources:
 
 | Resource | Source | Field in manifest | Unit |
 |----------|--------|-------------------|------|
+| OS | `runtime.GOOS` | `os` | enum (linux, darwin, windows) |
+| Architecture | `runtime.GOARCH` | `arch` | enum (amd64, arm64, riscv64) |
 | RAM | `/proc/meminfo` | `min_ram_mb` | MB |
 | Storage (free) | `statfs()` on `/cognitiveos/` | `min_storage_mb` | MB |
 | NPU availability | `/sys/class/npu/` or `lspci` | `npu_required` | boolean |

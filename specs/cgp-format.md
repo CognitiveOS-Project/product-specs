@@ -11,6 +11,7 @@ A Cognitive Patch (`.cgp`) is the distribution format for CognitiveOS skills, to
 A `.cgp` file is a **tar.gz** (gzip-compressed tar archive). Uncompressed directories are also valid for development.
 
 ### Directory structure
+For packages containing compiled binaries, the filename should reflect the target environment: `<name>-<version>-<os>-<arch>.cgp`. Architecture-agnostic packages use the standard `<name>-<version>.cgp` or `<name>-<version>-universal.cgp`.
 
 ```
 <name>-<version>.cgp/

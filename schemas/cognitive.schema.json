@@ -77,8 +77,24 @@
     },
     "hardware_requirements": {
       "type": "object",
-      "description": "Minimum hardware specifications for this patch",
+      "description": "Minimum hardware and environment specifications for this patch",
       "properties": {
+        "os": {
+          "type": "array",
+          "description": "Supported operating systems. If omitted, the patch is OS-agnostic",
+          "items": {
+            "type": "string",
+            "enum": ["linux", "darwin", "windows"]
+          }
+        },
+        "arch": {
+          "type": "array",
+          "description": "Supported CPU architectures. If omitted, the patch is architecture-agnostic",
+          "items": {
+            "type": "string",
+            "enum": ["amd64", "arm64", "riscv64"]
+          }
+        },
         "min_ram_mb": {
           "type": "integer",
           "description": "Minimum RAM in megabytes"

@@ -206,14 +206,26 @@ Get metadata for a specific version.
 The `manifest` field contains the full parsed `cognitive.json`.
 
 ### `GET /v1/patches/{name}/{version}/download`
-
 Download redirect. The registry does **not** host files — it redirects to the canonical download URL.
 
-#### Response
+#### Parameters
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `os` | string | — | Target operating system (e.g., `linux`, `darwin`) |
+| `arch` | string | — | Target CPU architecture (e.g., `amd64`, `arm64`) |
 
+The registry uses these parameters to resolve the specific variant (e.g., `email-manager-1.2.0-linux-amd64.cgp`) from the stored assets. If no variant matches, it falls back to the universal version.
+
+#### Response
 ```
 HTTP/1.1 302 Found
-Location: https://github.com/.../email-manager-1.2.0.cgp
+Location: https://github.com/.../email-manager-1.2.0-linux-amd64.cgp
+```
+
+#### Response
+```
+HTTP/1.1 302 Found
+Location: https://github.com/.../email-manager-1.2.0-linux-amd64.cgp
 ```
 
 ### `POST /v1/patches`
