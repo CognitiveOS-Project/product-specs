@@ -45,35 +45,40 @@ Version: 1.0.0-draft
 
 ## Alpine Packages
 
-### Mandatory Packages
+## Alpine Packages
+ 
+### Variant Package Matrix
+ 
+Package sets are defined per variant (`packages.<class>-<arch>`).
+ 
+| Package | standard-x86_64 | gateway-x86_64 | titan-aarch64 | edge-aarch64 | edge-armv7 | micro-armv7 |
+|---------|:---:|:---:|:---:|:---:|:---:|:---:|
+| `alpine-base` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `busybox` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `openrc` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `linux-lts` | ✓ | ✓ | — | — | — | — |
+| `linux-rpi` | — | — | ✓ | ✓ | ✓ | ✓ |
+| `raspberrypi-bootloader` | — | — | ✓ | ✓ | ✓ | ✓ |
+| `raspberrypi-firmware` | — | — | ✓ | ✓ | ✓ | ✓ |
+| `alsa-utils` | ✓ | — | ✓ | ✓ | ✓ | — |
+| `alsa-lib` | ✓ | — | ✓ | ✓ | ✓ | — |
+| `iw` | ✓ | ✓ | ✓ | ✓ | ✓ | — |
+| `wpa_supplicant` | ✓ | ✓ | ✓ | ✓ | ✓ | — |
+| `dhcpcd` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `libgpiod` | ✓ | ✓ | ✓ | ✓ | ✓ | — |
+| `kbd` | ✓ | — | ✓ | ✓ | ✓ | — |
+| `mpv` | ✓ | — | ✓ | — | — | — |
+| `dosfstools` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `e2fsprogs` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `squashfs-tools` | ✓ | ✓ | ✓ | ✓ | ✓ | — |
+| `acpid` | ✓ | ✓ | ✓ | ✓ | ✓ | — |
+| `fbv` | — | — | ✓ | ✓ | ✓ | — |
+| `fbi` | — | — | ✓ | ✓ | ✓ | — |
+| `gpiod-tools` | — | — | ✓ | ✓ | ✓ | — |
+| `iputils` | — | ✓ | — | — | — | — |
+| `curl` | — | ✓ | — | — | — | — |
+| `nmap` | — | ✓ | — | — | — | — |
 
-```
-# Base system
-alpine-base
-busybox
-openrc
-linux-lts (or linux-rpi)
-
-# Hardware support
-alsa-utils
-alsa-lib
-iw
-wpa_supplicant
-dhcpcd
-libgpiod
-gpiod-tools
-kbd
-
-# Media (framebuffer)
-fbv
-mpv
-fbi
-
-# Filesystem
-dosfstools
-e2fsprogs
-squashfs-tools
-```
 
 ### Excluded Packages
 
@@ -241,7 +246,7 @@ mkimage \
   --repository https://dl-cdn.alpinelinux.org/alpine/edge/community \
   --outdir ./output \
   --overlay ./overlay \
-  --packages "$(cat packages.x86_64)" \
+  --packages "$(cat packages.standard-x86_64)" \
   --kernel-flavors lts \
   --media iso
 ```
@@ -257,7 +262,7 @@ mkimage \
   --repository https://dl-cdn.alpinelinux.org/alpine/edge/community \
   --outdir ./output \
   --overlay ./overlay \
-  --packages "$(cat packages.aarch64)" \
+  --packages "$(cat packages.edge-aarch64)" \
   --kernel-flavors rpi \
   --media sdcard
 ```
