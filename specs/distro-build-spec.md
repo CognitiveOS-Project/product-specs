@@ -302,9 +302,7 @@ The `cognitiveos-distro` repo orchestrates the per-repo builds:
 ```
 cognitiveos-distro/
 ├── Makefile              # Top-level build automation (orchestrator)
-├── packages.x86_64       # Package list for x86_64
-├── packages.aarch64      # Package list for ARM64
-├── packages.armv7        # Package list for ARMv7
+├── packages.*            # Package list per variant (e.g. packages.standard-x86_64)
 ├── overlay/              # Filesystem overlay (above)
 ├── configs/
 │   ├── inittab
@@ -314,13 +312,14 @@ cognitiveos-distro/
 │   ├── build-binaries.sh   # Step 2: invoke each repo's make build, collect binaries
 │   ├── build-overlay.sh    # Step 3: assemble overlay
 │   ├── build-image.sh      # Step 4: x86_64 ISO / RPi image
-│   ├── build-iso.sh        # Step 4: x86_64 ISO
-│   ├── build-rpi.sh        # Step 4: RPi SD card
 │   ├── build-distro-tarball.sh  # Build portable distro tarball
 │   └── sign.sh             # Step 5: checksums + GPG
 ├── docker/
-│   ├── Dockerfile.build    # Cross-compilation container (uses per-repo Makefiles)
-│   └── Dockerfile.release  # Minimal runtime image
+│   ├── dev/
+│   │   └── Dockerfile      # Dev runtime image for CI verification
+│   ├── release/
+│   │   └── <variant>/      # Variant-specific Dockerfiles (e.g. release/standard-x86_64/Dockerfile)
+│   └── Dockerfile.build    # Cross-compilation container (uses per-repo Makefiles)
 └── README.md
 ```
 
@@ -334,9 +333,10 @@ rpi:            # Build Raspberry Pi SD card image (depends on install-local)
 install-local:  # Orchestrate per-repo builds + assemble overlay
 distro-tarball: # Build portable distro tarball (overlay + binaries)
 docker:         # Build the cross-compilation Docker image (cognitiveos-builder)
-docker.release: # Build Docker release image (cognitiveos:VERSION)
-shell:          # Start an interactive shell in the build container
-release:        # distro-tarball + docker.release
+docker.dev:         # Build dev runtime image (x86_64 only, CGO_ENABLED=0)
+release-variant:    # Build release assets (tarball + image) for specific variant
+docker-release-arch: # Build variant Docker image using buildx (CGO_ENABLED=1)
+docker-push-arch:    # Push variant Docker image to GHCR
 checksums:      # Generate SHA-256 checksums for all images
 sign:           # GPG-sign all images
 clean:          # Remove build artifacts
@@ -381,16 +381,17 @@ make install-local
 This copies all binaries to `/usr/local/bin/`, installs configs, and sets up the runtime directories. Useful for testing on a real Alpine installation or Docker container.
 
 ## Docker Image
-
-A lightweight Docker image is provided for development, testing, and headless deployment:
-
+ 
+A lightweight Docker image is provided for development, testing, and headless deployment. Images are built per variant using dedicated Dockerfiles in `docker/release/<variant>/Dockerfile`.
+ 
 ```bash
-# Build the release image
-make docker.release
-
+# Build a variant release image (e.g. standard-x86_64)
+make docker-release-arch ARCH=x86_64 CLASS=standard
+ 
 # Run — full TUI experience
-docker run -it cognitiveos:0.1.0
+docker run -it cognitiveos:0.1.0-standard-x86_64
 ```
+
 
 The Docker image uses the same overlay as the bootable ISO but skips the mkimage step. All binaries, configs, and default directory structure are baked in.
 
