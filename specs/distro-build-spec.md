@@ -47,6 +47,17 @@ Version: 1.0.0-draft
 
 ## Alpine Packages
  
+### Class Model Mapping
+The profile class determines which Raw Model is baked into the image and which Wide Model ships as the default. Full details in [raw-model.md](raw-model.md#distro-image-variants).
+
+| Class | Raw Model | Ships wide model? | Initial wide model source |
+|-------|-----------|-------------------|---------------------------|
+| `titan` | 235B Qwen GGUF | No | None — raw-managed, agent-triggered `.cgp` install |
+| `standard` | 1.5B GGUF | Yes | 8B Gemma 4 GGUF in `/cognitiveos/patches/base/weights/` |
+| `gateway` | Compiled-in only | No | Pulled from remote on first boot via first-run wizard |
+| `edge` | 0.5B GGUF | Yes | Auto-selected tiny GGUF from patched weights directories |
+| `micro` | Compiled-in only | No | Remote-only (thin client, pulls from inference proxy) |
+
 ### Variant Package Matrix
  
 Package sets are defined per variant (`packages.<class>-<arch>`).
