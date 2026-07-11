@@ -182,13 +182,13 @@ Examples:
 
 The class encodes the hardware tier and determines which raw model is baked at build time:
 
-| Class | Raw Model | Ships wide model? | Initial wide model source |
-|-------|-----------|-------------------|---------------------------|
-| `titan` | 235B Qwen GGUF | No | None — raw-managed, agent-triggered `.cgp` install |
-| `standard` | 1.5B GGUF | Yes | 8B Gemma 4 GGUF in `/cognitiveos/patches/base/weights/` at image build time |
-| `gateway` | Compiled-in only (no GGUF) | No | Pulled from remote on first boot via first-run wizard |
-| `edge` | 0.5B GGUF | Yes | Auto-selected tiny GGUF from patched weights directories |
-| `micro` | Compiled-in only (no GGUF) | No | Remote-only (thin client, pulls from inference proxy) |
+| Class | RAM | VRAM | Storage | OS/Arch | Raw Model | Wide Model | CI buildable |
+|-------|-----|------|---------|---------|-----------|------------|:---:|
+| `titan` | ≥16 GB | ≥4 GB | ≥64 GB | linux/arm64 | 235B Qwen GGUF | None — remote/`.cgp` | No |
+| `standard` | ≥8 GB | — | ≥16 GB | linux/amd64 | 1.5B GGUF | 8B Gemma 4 (baked) | Yes |
+| `gateway` | ≥4 GB | — | ≥8 GB | linux/amd64 | Compiled-in (no GGUF) | Remote on first boot | Yes |
+| `edge` | ≥2 GB | — | ≥4 GB | linux/arm64, linux/armv7 | 0.5B GGUF | Tiny (auto-selected) | Slow (QEMU) |
+| `micro` | ≥512 MB | — | ≥1 GB | linux/armv7 | Compiled-in (no GGUF) | Remote-only (thin client) | Slow (QEMU) |
 
 The class table is encoded in the distro build scripts. The class is not a runtime value — it determines what is baked into the image at build time.
 

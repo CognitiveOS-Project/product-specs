@@ -48,15 +48,20 @@ Version: 1.0.0-draft
 ## Alpine Packages
  
 ### Class Model Mapping
-The profile class determines which Raw Model is baked into the image and which Wide Model ships as the default. Full details in [raw-model.md](raw-model.md#distro-image-variants).
+The profile class defines the hardware tier and determines which raw model is baked into the image and which wide model ships as the default.
 
-| Class | Raw Model | Ships wide model? | Initial wide model source |
-|-------|-----------|-------------------|---------------------------|
-| `titan` | 235B Qwen GGUF | No | None — raw-managed, agent-triggered `.cgp` install |
-| `standard` | 1.5B GGUF | Yes | 8B Gemma 4 GGUF in `/cognitiveos/patches/base/weights/` |
-| `gateway` | Compiled-in only | No | Pulled from remote on first boot via first-run wizard |
-| `edge` | 0.5B GGUF | Yes | Auto-selected tiny GGUF from patched weights directories |
-| `micro` | Compiled-in only | No | Remote-only (thin client, pulls from inference proxy) |
+| Class | RAM | VRAM | Storage | OS/Arch | Raw Model | Wide Model | CI buildable |
+|-------|-----|------|---------|---------|-----------|------------|:---:|
+| `titan` | ≥16 GB | ≥4 GB | ≥64 GB | linux/arm64 | 235B Qwen GGUF | None — remote/`.cgp` | No |
+| `standard` | ≥8 GB | — | ≥16 GB | linux/amd64 | 1.5B GGUF | 8B Gemma 4 (baked) | Yes |
+| `gateway` | ≥4 GB | — | ≥8 GB | linux/amd64 | Compiled-in (no GGUF) | Remote on first boot | Yes |
+| `edge` | ≥2 GB | — | ≥4 GB | linux/arm64, linux/armv7 | 0.5B GGUF | Tiny (auto-selected) | Slow (QEMU) |
+| `micro` | ≥512 MB | — | ≥1 GB | linux/armv7 | Compiled-in (no GGUF) | Remote-only (thin client) | Slow (QEMU) |
+
+**Distribution Note:**
+- **Docker images** for all classes can be built in CI (x86_64 native, ARM via QEMU).
+- **Bootable images** (ISO/SD card) for `titan` require dedicated hardware or self-hosted runners due to size and build complexity.
+- **Validation** in CI is performed using the mock backend. Real hardware validation is performed post-distribution.
 
 ### Variant Package Matrix
  
