@@ -300,6 +300,27 @@ Found 3 matches:
 
 **Exit codes:** 0=ok, 1=query too short, 2=registry unreachable
 
+#### `cpm pack --bin <path> [--manifest <path>] [--name <name>] [--version <version>] [--os <os>] [--arch <arch>] [--description <desc>]`
+
+Package a binary or directory of binaries into a `.cgp` archive.
+
+**Manifest Resolution & Merging:**
+If `--manifest` is not provided, cpm automatically searches for a `cognitive.json` file in the following order (shallowest to deepest):
+1. `CWD/cognitive.json`
+2. `parent(bin)/cognitive.json`
+3. `bin/cognitive.json`
+4. `--manifest <path>` (if provided, deepest priority)
+
+Found manifests are merged sequentially; deeper definitions override shallower ones. If no manifest is found and `--name` / `--version` are missing, the command fails.
+
+Example:
+```bash
+cpm pack --bin ./build/bin/bridges --manifest cognitive.json
+cpm pack --bin ./build/bin/cli --name cognitiveos-cli --version 0.1.0
+```
+
+**Exit codes:** 0=ok, 1=binary not found, 2=manifest missing or invalid
+
 #### `cpm publish <path> [--registry <url>]`
 
 Publish a `.cgp` archive to the registry.
@@ -336,7 +357,7 @@ cd my-skill
 # Edit cognitive.json, add prompts/tools/weights
 ```
 
-Creates the standard `.cgp` directory structure with a default `cognitive.json`. Use `--template` to scaffold a package with the relevant fields pre-filled:
+Creates the standard `.cgp` directory structure with a default `cognitive.json`. Use `--template` to scaffold a package with the relevant fields pre-filled. These manifests are then used by `cpm pack` to generate the final `.cgp` archive.
 
 | `--template` | Scaffolds | Use case |
 |---|---|---|
