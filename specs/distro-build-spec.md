@@ -4,7 +4,7 @@ Version: 1.0.0-draft
 
 ## Overview
 
-`cognitiveos-distro` produces bootable system images based on Alpine Linux. The build process compiles all CognitiveOS components, assembles them into an Alpine overlay, and generates platform-specific images.
+`cognitiveos-distro` produces bootable system images. The primary implementation uses Alpine Linux, with Ubuntu and Red Hat variants planned. The build process compiles all CognitiveOS components, assembles them into an OS overlay, and generates platform-specific images.
 
 ## Supported Targets
 
@@ -19,9 +19,9 @@ Version: 1.0.0-draft
 
 | Property | Value |
 |----------|-------|
-| Base OS | Alpine Linux (edge or latest stable) |
+| Base OS | Alpine Linux (edge) — Ubuntu and Red Hat variants planned (see [Multi-OS Strategy](#multi-os-strategy)) |
 | Kernel | linux-lts (x86_64), linux-rpi (aarch64) |
-| Init system | OpenRC (Alpine default) |
+| Init system | OpenRC (Alpine default) — systemd for Ubuntu/Red Hat variants |
 | Root filesystem | squashfs (read-only) or ext4 (writable developer mode) |
 
 ## Partition Layout
@@ -44,9 +44,6 @@ Version: 1.0.0-draft
 | (no data partition) | — | — | — | Wide Model is remote-only on minimal devices |
 
 ## Alpine Packages
-
-## Alpine Packages
- 
 ### Class Model Mapping
 The profile class defines the hardware tier and determines which raw model is baked into the image and which wide model ships as the default.
 
@@ -484,3 +481,76 @@ Images also embed a build manifest at `/etc/cognitiveos/image-manifest.json`:
   }
 }
 ```
+
+## Multi-OS Strategy
+
+### Vision
+
+CognitiveOS will support multiple Linux distributions as base images. Each distribution is maintained as a separate repository forked from `cognitiveos-distro`:
+
+| Repository | Base OS | Status |
+|-----------|---------|--------|
+| `cognitiveos-alpine-distro` | Alpine Linux | Current (primary) |
+| `cognitiveos-ubuntu-distro` | Ubuntu LTS | Planned |
+| `cognitiveos-redhat-distro` | RHEL / Fedora | Planned |
+
+### What Transfers Across Forks
+
+The following are OS-agnostic and shared across all distro forks:
+
+- **CGP format** and `cognitive.json` manifest schema
+- **`cpm`** package manager (already supports `apk`, `npm`, `pip`, `cargo`, `go`, `git`)
+- **All Go component repos** (`cognitiveosd`, `cli`, `inference`, `core-mcp-bridges`)
+- **Overlay structure** (`/cognitiveos/`, `/etc/cognitiveos/`, `/usr/local/bin/`)
+- **Partition layout** (boot, root, firmware, data)
+- **Class model mapping** (titan, standard, gateway, edge, micro)
+- **Docker release workflow pattern** (per-variant Dockerfiles, GHCR push)
+
+### What Is Distro-Specific
+
+Each fork owns its own:
+
+| Component | Description | Example |
+|-----------|-------------|---------|
+| `packages.<class>-<arch>` files | OS-specific package names | `alpine-base` → `ubuntu-minimal` |
+| `bootstrap-*.sh` script | Package installation script | `apk add` → `apt-get install` |
+| Runtime Dockerfile stage | Base image selection | `FROM alpine:edge` → `FROM ubuntu:24.04` |
+| Image builder | OS-specific mkimage tooling | Alpine mkimage → debootstrap → live-build |
+| Init system | Service management | OpenRC (Alpine) → systemd (Ubuntu) |
+
+### What Does NOT Transfer
+
+Alpine-specific build scripts stay in `cognitiveos-alpine-distro` only:
+
+- `scripts/build-image.sh` (uses Alpine's `mkimage.sh`)
+- `scripts/genapkovl-cognitiveos.sh` (Alpine overlay format)
+- `scripts/mkimg.cognitiveos.sh` (Alpine mkimage profile)
+
+### Package File Convention
+
+The `packages.<class>-<arch>` naming convention is preserved across all forks. Only the package names inside change:
+
+```
+# Alpine (cognitiveos-alpine-distro)
+packages.standard-x86_64:
+  alpine-base, busybox, openrc, linux-lts, alsa-utils, ...
+
+# Ubuntu (cognitiveos-ubuntu-distro) — future
+packages.standard-x86_64:
+  ubuntu-minimal, systemd, linux-generic, alsa-utils, ...
+
+# Red Hat (cognitiveos-redhat-distro) — future
+packages.standard-x86_64:
+  redhat-release, systemd, kernel, alsa-utils, ...
+```
+
+### cpm Manager Support
+
+`cpm/internal/manager/manager.go` already dispatches to the correct system package manager based on the `manager` field in `hardware_dependencies.packages`:
+
+| Manager | Command | Distro |
+|---------|---------|--------|
+| `apk` | `apk add` | Alpine |
+| `apt` | `apt-get install` | Ubuntu/Debian |
+| `dnf` | `dnf install` | RHEL/Fedora |
+| `npm`, `pip`, `cargo`, `go`, `git` | Language-specific | Cross-distro |

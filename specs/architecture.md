@@ -25,7 +25,7 @@ CognitiveOS is an intent-centric, AI-native operating system. The human speaks o
 |  Hardware Layer   |  core-mcp-bridges                        |
 |                   |  (display, audio, network, GPIO, serial) |
 +-------------------+-----------------------------------------+
-|  Base OS          |  Hardened Alpine Linux                   |
+|  Base OS          |  Hardened Linux (Alpine primary, Ubuntu/Red Hat planned) |
 |                   |  - Custom /etc/inittab (no login)         |
 |                   |  - Single-process root                    |
 |                   |  - No desktop environment                 |
@@ -34,9 +34,11 @@ CognitiveOS is an intent-centric, AI-native operating system. The human speaks o
 
 ## Layer Descriptions
 
-### 1. Base OS (Alpine Linux)
+### 1. Base OS (Linux)
 
-Custom-built Alpine Linux with:
+Hardened Linux distribution. Alpine Linux is the current primary implementation, with Ubuntu and Red Hat variants planned (see [Multi-OS Strategy](distro-build-spec.md#multi-os-strategy)).
+
+Current build (Alpine) provides:
 
 - **No multi-user** — root is the only actor
 - **No display manager** — no X11, no Wayland, no window manager
