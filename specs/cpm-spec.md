@@ -312,7 +312,21 @@ Requires authentication token (from `~/.cognitiveos/cpm-credentials.json` or `CP
 
 **Exit codes:** 0=ok, 1=validation failed, 2=auth failed, 3=network error, 4=version already exists
 
-#### `cpm init [<dir>]`
+#### `cpm register-dependencies <package> [--root <path>]`
+Register system-level dependencies for an installed patch in the installation queue.
+```bash
+cpm register-dependencies email-manager
+cpm --root=/mnt/target register-dependencies email-manager
+```
+**Exit codes:** 0=ok, 1=not installed, 2=registration failed
+
+#### `cpm install-dependencies --stage <stage> [--root <path>]`
+Install all pending system dependencies for the specified lifecycle stage.
+```bash
+cpm install-dependencies --stage boot
+cpm --root=/mnt/target install-dependencies --stage build
+```
+**Exit codes:** 0=ok, 1=missing stage, 2=critical dependency failed, 3=manager error
 
 Create a new `.cgp` skeleton directory.
 
@@ -397,7 +411,7 @@ Input: "cpm install email-manager"
 ```
 
 ### Step 3: Resolve Dependencies
-
+Cpm resolves all CGP-to-CGP dependencies before proceeding.
 ```
   3.1 Read cognitive.json → dependencies field
   3.2 For each dependency:
@@ -405,6 +419,16 @@ Input: "cpm install email-manager"
       3.2.2 If not, resolve from registry (recursive)
       3.2.3 Check for circular dependencies (fail if circular, exit 3)
   3.3 Install dependencies first (recursive call to install)
+```
+
+### Step 3.5: Register and Install System Dependencies
+Cpm handles OS-level dependencies declared in `hardware_dependencies.packages`.
+```
+  3.5.1 Register system dependencies:
+       Call `cpm register-dependencies <name>` to write registration records to /cognitiveos/lib/cpm/queue/<stage>/
+  3.5.2 Install immediate dependencies:
+       Call `cpm install-dependencies --stage install` to process the 'install' queue.
+  3.5.3 If a required dependency fails to install → abort installation and rollback queue records (exit 3)
 ```
 
 ### Step 4: Hardware Audit

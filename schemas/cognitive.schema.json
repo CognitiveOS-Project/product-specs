@@ -113,6 +113,27 @@
         }
       }
     },
+    "hardware_dependencies": {
+      "type": "object",
+      "description": "System-level dependencies required by this patch's MCP servers and tools",
+      "properties": {
+        "packages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "manager", "stage"],
+            "properties": {
+              "name": { "type": "string", "description": "Package name as understood by the system package manager" },
+              "manager": { "type": "string", "enum": ["apk", "npm", "bun", "pip", "cargo", "go", "git"], "description": "Package manager to use" },
+              "stage": { "type": "string", "enum": ["build", "boot", "install", "runtime"], "description": "Lifecycle stage when this package should be installed" },
+              "required": { "type": "boolean", "default": true, "description": "If false, patch install proceeds even if this package fails to install" },
+              "version": { "type": "string", "description": "Semver version or 'latest'" },
+              "description": { "type": "string", "description": "Human-readable description" }
+            }
+          }
+        }
+      }
+    },
     "brain": {
       "type": "object",
       "description": "Model configuration for this patch. Use raw_model for self-contained models (e.g. firmware), wide_model for large models with remote weights, or both for hybrid packages.",

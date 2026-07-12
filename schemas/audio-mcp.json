@@ -85,6 +85,11 @@
   "hardware_dependencies": {
     "required": ["ALSA (snd_pcm)"],
     "optional": ["snd_mic"],
-    "packages": ["alsa-utils", "alsa-lib", "mpg123", "flac"]
+    "packages": [
+      { "name": "alsa-utils", "manager": "apk", "stage": "boot", "required": true, "description": "ALSA audio utilities (aplay, arecord, amixer)" },
+      { "name": "alsa-lib", "manager": "apk", "stage": "build", "required": true, "description": "ALSA library (required by audio-mcp)" },
+      { "name": "mpg123", "manager": "apk", "stage": "boot", "required": false, "description": "MPEG audio player (mp3 playback)" },
+      { "name": "flac", "manager": "apk", "stage": "boot", "required": false, "description": "FLAC audio codec" }
+    ]
   }
 }

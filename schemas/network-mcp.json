@@ -118,6 +118,11 @@
   "hardware_dependencies": {
     "required": ["wireless interface (wlan0) or ethernet"],
     "optional": [],
-    "packages": ["iw", "wpa_supplicant", "wireless-tools", "dhcpcd"]
+    "packages": [
+      { "name": "iw", "manager": "apk", "stage": "boot", "required": true, "description": "iw wireless tool" },
+      { "name": "wpa_supplicant", "manager": "apk", "stage": "boot", "required": true, "description": "WPA supplicant" },
+      { "name": "wireless-tools", "manager": "apk", "stage": "boot", "required": false, "description": "Traditional wireless tools" },
+      { "name": "dhcpcd", "manager": "apk", "stage": "boot", "required": true, "description": "DHCP client daemon" }
+    ]
   }
 }

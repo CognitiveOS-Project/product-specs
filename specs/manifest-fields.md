@@ -22,6 +22,7 @@ Comprehensive field reference for the `cognitive.json` manifest. Only `name`, `v
 | `source` | object | no | — | Source repository and issue tracker URLs |
 | `dependencies` | object | no | — | Map of package names to SemVer version ranges |
 | `hardware_requirements` | object | no | — | Minimum hardware specifications for this patch |
+| `hardware_dependencies` | object | no | — | System-level dependencies required by this patch's MCP servers and tools |
 | `brain` | object | no | — | Model configuration. Use `raw_model` for self-contained models, `wide_model` for large models with remote weights |
 | `runtime` | object | no | — | Runtime configuration for MCP servers and lifecycle |
 
@@ -63,10 +64,31 @@ Map of package names (`string`) to SemVer version ranges (`string`). Each value 
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `os` | array of string | no | Supported operating systems (e.g. `["linux", "darwin"]`). If omitted, the patch is OS-agnostic |
+| `arch` | array of string | no | Supported CPU architectures (e.g. `["amd64", "arm64"]`). If omitted, the patch is arch-agnostic |
 | `min_ram_mb` | integer | no | Minimum RAM in megabytes |
 | `min_storage_mb` | integer | no | Minimum free storage in megabytes |
 | `npu_required` | boolean | no | Whether a neural processing unit is required |
 | `recommended_npu` | string | no | Recommended NPU architecture (e.g. `hailo-8`, `jetson-orin-nano`) |
+
+---
+
+## `hardware_dependencies` Object
+
+Used to declare system-level dependencies (e.g. OS packages) that must be installed for the patch's tools and MCP servers to function.
+
+### `hardware_dependencies.packages` Array
+
+An array of package objects. Each object defines a dependency to be managed by the system package manager.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | **yes** | Package name as understood by the package manager (e.g. `alsa-utils`) |
+| `manager` | string | **yes** | Package manager to use. Enum: `apk`, `npm`, `bun`, `pip`, `cargo`, `go`, `git` |
+| `stage` | string | **yes** | Lifecycle stage when this package should be installed. Enum: `build`, `boot`, `install`, `runtime` |
+| `required` | boolean | no | If `true` (default), patch install fails if this package cannot be installed |
+| `version` | string | no | Semver version requirement or `latest` |
+| `description` | string | no | Human-readable description of the dependency |
 
 ---
 

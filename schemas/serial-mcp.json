@@ -110,6 +110,9 @@
   "hardware_dependencies": {
     "required": [],
     "optional": ["/dev/ttyS*", "/dev/ttyUSB*", "/dev/ttyAMA*"],
-    "packages": ["picocom", "screen"]
+    "packages": [
+      { "name": "picocom", "manager": "apk", "stage": "boot", "required": false, "description": "Serial communication tool" },
+      { "name": "screen", "manager": "apk", "stage": "boot", "required": false, "description": "Terminal multiplexer" }
+    ]
   }
 }

@@ -104,6 +104,9 @@
   "hardware_dependencies": {
     "required": [],
     "optional": ["/dev/gpiochip0", "/sys/class/gpio", "/sys/class/pwm"],
-    "packages": ["libgpiod", "gpiod-tools"]
+    "packages": [
+      { "name": "libgpiod", "manager": "apk", "stage": "boot", "required": true, "description": "libgpiod library" },
+      { "name": "gpiod-tools", "manager": "apk", "stage": "boot", "required": false, "description": "GPIO utilities (may not be available in all Alpine versions)" }
+    ]
   }
 }

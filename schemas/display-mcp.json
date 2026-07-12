@@ -74,6 +74,10 @@
   "hardware_dependencies": {
     "required": ["/dev/fb0"],
     "optional": ["dri/card0", "dri/controlD64"],
-    "packages": ["fbv", "mpv", "fbi"]
+    "packages": [
+      { "name": "fbv", "manager": "apk", "stage": "boot", "required": false, "description": "Framebuffer image viewer" },
+      { "name": "mpv", "manager": "apk", "stage": "boot", "required": true, "description": "MPV media player for video rendering" },
+      { "name": "fbi", "manager": "apk", "stage": "boot", "required": false, "description": "Framebuffer image viewer (fallback)" }
+    ]
   }
 }

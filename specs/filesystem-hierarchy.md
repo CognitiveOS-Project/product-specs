@@ -44,6 +44,13 @@ The CognitiveOS filesystem is organized around two principles:
 │   │   ├── downloads/          # Partial .cgp downloads
 │   │   └── render/             # Cached framebuffer renders
 │   └── state.json              # Current Wide Model state snapshot
+├── lib/                        # System libraries and package manager state
+│   └── cpm/
+│       └── queue/              # Dependency installation queue (persistent)
+│           ├── build/
+│           ├── boot/
+│           ├── install/
+│           └── runtime/
 ├── audit/                      # Resource audit snapshots (writable)
 │   ├── current.json            # Latest audit result
 │   └── history/                # Historical audit records
@@ -91,6 +98,7 @@ For devices with limited flash (MCUs, smart home), the same logical layout compr
 | `/cognitiveos/patches/` | Data partition | cpm | Survives idle, wiped on reset |
 | `/cognitiveos/run/` | tmpfs | cognitiveosd, MCP servers | Volatile (lost on shutdown) |
 | `/cognitiveos/data/` | Data partition | Wide Model, cognitiveosd | Survives idle, wiped on reset |
+| `/cognitiveos/lib/cpm/queue/` | Data partition | cpm | Survives idle, wiped on reset |
 | `/cognitiveos/audit/` | Data partition | cognitiveosd | Survives idle, wiped on reset |
 | `/cognitiveos/logs/` | Data partition | All components | Rotated, survives idle, wiped on reset |
 | `/etc/cognitiveos/` | Root partition | Physical access only | Always persists |
