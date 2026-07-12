@@ -426,9 +426,14 @@ Input: "cpm install email-manager"
 ### Step 2: Parse and Validate
 
 ```
-  2.1 Extract cognitive.json from archive
-  2.2 Validate against cognitive.schema.json
-  2.3 Fail if invalid (exit 2)
+  2.1 Extract archive to temp directory
+  2.2 Read cognitive.json from extracted directory
+  2.3 Validate against cognitive.schema.json
+  2.4 Verify referenced files exist in extracted directory:
+      - runtime.system_prompt
+      - runtime.mcp_servers[].command (resolved relative to tools/)
+      - brain.adapter
+  2.5 Fail if invalid or missing files (exit 2), clean up temp directory
 ```
 
 ### Step 3: Resolve Dependencies
