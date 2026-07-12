@@ -389,9 +389,10 @@ cpm verify ./my-skill.cgp
 
 Checks:
 - Valid tar.gz format
-- `cognitive.json` exists and validates against schema
+- `cognitive.json` exists and validates against full schema
 - All referenced files in manifest exist in archive
-- No missing dependencies
+- `hardware_requirements` values within sane bounds
+- `hardware_dependencies.packages` entries have valid manager/stage enums
 - Executables in `tools/` have valid shebangs or are ELF binaries
 
 **Exit codes:** 0=valid, 1=invalid format, 2=schema violation, 3=missing file, 4=dependency not met
