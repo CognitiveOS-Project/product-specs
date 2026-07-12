@@ -300,9 +300,9 @@ Found 3 matches:
 
 **Exit codes:** 0=ok, 1=query too short, 2=registry unreachable
 
-#### `cpm pack --bin <path> [--manifest <path>] [--name <name>] [--version <version>] [--os <os>] [--arch <arch>] [--description <desc>]`
+#### `cpm pack [--bin <path>] [--manifest <path>] [--name <name>] [--version <version>] [--os <os>] [--arch <arch>] [--description <desc>]`
 
-Package a binary or directory of binaries into a `.cgp` archive.
+Package a binary or directory of binaries into a `.cgp` archive. If `--bin` is omitted, only the manifest (and any files it references) is packaged.
 
 **Manifest Resolution & Merging:**
 If `--manifest` is not provided, cpm automatically searches for a `cognitive.json` file in the following order (shallowest to deepest):
