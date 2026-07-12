@@ -47,4 +47,4 @@ The ESP32-S3 units are excellent for expanding CognitiveOS reach. Since core-mcp
 - [Architecture](architecture.md) — two-tier brain layer (Raw + Wide Model)
 - [Raw Model](raw-model.md) — raw model spec, distro variants by hardware tier
 - [core-mcp-bridges](https://github.com/CognitiveOS-Project/core-mcp-bridges) — MCP bridge implementations
-- [cognitiveos-distro](https://github.com/CognitiveOS-Project/cognitiveos-distro) — image builder per target
+- [cognitiveos-alpine-distro](https://github.com/CognitiveOS-Project/cognitiveos-alpine-distro) — image builder per target

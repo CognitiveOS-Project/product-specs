@@ -4,7 +4,7 @@ Version: 1.0.0-draft
 
 ## Overview
 
-`cognitiveos-distro` produces bootable system images. The primary implementation uses Alpine Linux, with Ubuntu and Red Hat variants planned. The build process compiles all CognitiveOS components, assembles them into an OS overlay, and generates platform-specific images.
+`cognitiveos-alpine-distro` produces bootable system images. The primary implementation uses Alpine Linux, with Ubuntu and Red Hat variants planned. The build process compiles all CognitiveOS components, assembles them into an OS overlay, and generates platform-specific images.
 
 ## Supported Targets
 
@@ -219,7 +219,7 @@ for repo in cpm cognitiveosd cli inference core-mcp-bridges; do
 done
 ```
 
-Binaries are placed in each repo's `build/bin/` directory. The `cognitiveos-distro` repository then collects them from sibling directories during overlay assembly. Each repo manages its own build environment — Go installation, llama.cpp compilation (inference), and bridge compilation (core-mcp-bridges).
+Binaries are placed in each repo's `build/bin/` directory. The `cognitiveos-alpine-distro` repository then collects them from sibling directories during overlay assembly. Each repo manages its own build environment — Go installation, llama.cpp compilation (inference), and bridge compilation (core-mcp-bridges).
 
 #### Step 3: Prepare Overlay
 
@@ -310,10 +310,10 @@ Each Go repo has its own `.github/workflows/ci.yml` that runs `make build`, `mak
 
 ## Build Scripts (Orchestrator)
 
-The `cognitiveos-distro` repo orchestrates the per-repo builds:
+The `cognitiveos-alpine-distro` repo orchestrates the per-repo builds:
 
 ```
-cognitiveos-distro/
+cognitiveos-alpine-distro/
 ├── Makefile              # Top-level build automation (orchestrator)
 ├── packages.*            # Package list per variant (e.g. packages.standard-x86_64)
 ├── overlay/              # Filesystem overlay (above)
@@ -486,7 +486,7 @@ Images also embed a build manifest at `/etc/cognitiveos/image-manifest.json`:
 
 ### Vision
 
-CognitiveOS will support multiple Linux distributions as base images. Each distribution is maintained as a separate repository forked from `cognitiveos-distro`:
+CognitiveOS will support multiple Linux distributions as base images. Each distribution is maintained as a separate repository forked from `cognitiveos-alpine-distro`:
 
 | Repository | Base OS | Status |
 |-----------|---------|--------|

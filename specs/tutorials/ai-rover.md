@@ -83,8 +83,8 @@ The `gpio-mcp` bridge controls motors by writing to `/sys/class/gpio` (digital p
 
 ```bash
 # 1. Download the aarch64 CognitiveOS image
-# From cognitiveos-distro releases:
-wget https://github.com/CognitiveOS-Project/cognitiveos-distro/releases/latest/download/cognitiveos-rpi-aarch64.img.xz
+# From cognitiveos-alpine-distro releases:
+wget https://github.com/CognitiveOS-Project/cognitiveos-alpine-distro/releases/latest/download/cognitiveos-rpi-aarch64.img.xz
 
 # 2. Flash to SD card
 xz -d cognitiveos-rpi-aarch64.img.xz
