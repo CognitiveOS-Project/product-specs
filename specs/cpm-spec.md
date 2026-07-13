@@ -596,7 +596,7 @@ The hardware audit checks these resources:
 | Resource | Source | Field in manifest | Unit |
 |----------|--------|-------------------|------|
 | OS | `runtime.GOOS` | `os` | enum (linux, darwin, windows) |
-| Architecture | `runtime.GOARCH` | `arch` | enum (amd64, arm64, riscv64) |
+| Architecture | `runtime.GOARCH` | `arch` | enum (amd64, arm64, arm, riscv64) |
 | RAM | `/proc/meminfo` | `min_ram_mb` | MB |
 | Storage (free) | `statfs()` on `/cognitiveos/` | `min_storage_mb` | MB |
 | NPU availability | `/sys/class/npu/` or `lspci` | `npu_required` | boolean |

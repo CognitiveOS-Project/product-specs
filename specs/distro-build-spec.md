@@ -403,14 +403,42 @@ This copies all binaries to `/usr/local/bin/`, installs configs, and sets up the
 ## Docker Image
  
 A lightweight Docker image is provided for development, testing, and headless deployment. Images are built per variant using dedicated Dockerfiles in `docker/release/<variant>/Dockerfile`.
- 
+
+### GHCR Package
+
+Images are published to `ghcr.io/cognitiveos-project/cognitiveos:<version>-<class>-<arch>`:
+
+```
+ghcr.io/cognitiveos-project/cognitiveos:0.4.1-standard-x86_64
+ghcr.io/cognitiveos-project/cognitiveos:0.4.1-titan-aarch64
+ghcr.io/cognitiveos-project/cognitiveos:0.4.1-edge-armv7
+```
+
+The `cognitiveos` GHCR package is owned by the `cognitiveos-alpine-distro` repo. Other repos (e.g. `cognitiveos`) must not push to this package.
+
+### Platform Mapping
+
+Docker buildx requires platform strings in `linux/<arch>` format. The Makefile maps Alpine architecture names to Docker platform strings:
+
+| Alpine name (`ARCH`) | Docker `--platform` | Variants |
+|---|---|---|
+| `x86_64` | `linux/amd64` | standard, gateway |
+| `aarch64` | `linux/arm64` | titan, edge |
+| `armv7` | `linux/arm/v7` | edge, micro |
+
+### Build
+
 ```bash
 # Build a variant release image (e.g. standard-x86_64)
 make docker-release-arch ARCH=x86_64 CLASS=standard
  
 # Run — full TUI experience
-docker run -it cognitiveos:0.1.0-standard-x86_64
+docker run -it cognitiveos:0.4.1-standard-x86_64
 ```
+
+### Build Times
+
+armv7 variants (edge, micro) compile llama.cpp C++ via QEMU user-mode emulation, which is significantly slower than native builds. Expect ~40-60 minutes for the Docker image build step on armv7 vs ~5-10 minutes for amd64/arm64. The 180-minute CI timeout accommodates this.
 
 
 The Docker image uses the same overlay as the bootable ISO but skips the mkimage step. All binaries, configs, and default directory structure are baked in.

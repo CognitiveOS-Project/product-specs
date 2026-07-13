@@ -122,11 +122,41 @@ Branch protection on `main` requires a PR (no direct push) but does not require 
 
 ## Release Pipeline
 
+### 1. Tag creation
+
+The orchestrator workflow (`release.yml`) creates an annotated git tag on `main` before dispatching variant builds:
+
+```
+Tag: v<version> (e.g. v0.4.1)
+```
+
+### 2. Variant dispatch
+
+The orchestrator triggers 6 variant workflows in parallel (one per class-arch combination), each receiving the version as an input:
+
+- `standard-x86_64`, `titan-aarch64`, `edge-aarch64`, `edge-armv7`, `gateway-x86_64`, `micro-armv7`
+- Titan (`titan-aarch64`) is `workflow_dispatch` only (manual trigger)
+- armv7 variants take significantly longer due to QEMU emulation
+
+### 3. Per-variant build
+
+Each variant workflow:
+1. Checks out `main` and builds Go binaries (`make release-variant`)
+2. Builds the Docker image (`make docker-release-arch`)
+3. Pushes to GHCR (`make docker-push-arch`)
+4. Uploads artifacts and creates/appends to the GitHub Release
+
+### 4. Version source
+
+Version is derived from `git describe --tags --abbrev=0` — no hardcoded `VERSION` file. All Makefile targets (`release-variant`, `docker-release-arch`, `docker-push-arch`) use this as the single source of truth.
+
 See [git-workflow.md](../../../.opencode/instructions/git-workflow.md) for the full multi-repo release pipeline:
 
-1. Merge topic branches to `main` via PR
-2. Tag all repos at the same version
-3. Verify deployment (website, docs, etc.)
+1. Merge topic branches to `main` via PR (or directly for maintainer emergency)
+2. Trigger `release.yml` with the version number (e.g. `0.4.1`)
+3. Orchestrator creates tag `v<version>`, dispatches 6 variant workflows
+4. Each variant builds binaries, Docker image, pushes to GHCR, uploads to Release
+5. Verify deployment (website, Docker images, registry packages)
 
 ## See Also
 
