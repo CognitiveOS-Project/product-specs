@@ -305,8 +305,15 @@ Each Go repository is independently buildable via a consistent interface:
 Each repo also provides `scripts/build.sh` as a self-contained bootstrap script (installs Go, llama.cpp, etc.) for environments without a pre-installed toolchain.
 
 ### CI/CD
-
+ 
 Each Go repo has its own `.github/workflows/ci.yml` that runs `make build`, `make test`, `make lint`, and `go vet` on push/PR to `main`.
+
+The `cognitiveos-alpine-distro` repository provides its own CI pipeline (`ci.yml`) that performs:
+- **ShellCheck**: Static analysis of all scripts in `scripts/`.
+- **Syntax Validation**: `sh -n` checks on all `.sh` files to ensure no syntax errors.
+- **Binary Verification**: Runs `make verify-repos` to ensure all dependent Go repos build from source.
+- **Image Build**: Runs `make docker.dev` to build the development runtime image. This job is triggered on every push to `main` and every pull request to ensure the build environment remains functional.
+
 
 ## Build Scripts (Orchestrator)
 
