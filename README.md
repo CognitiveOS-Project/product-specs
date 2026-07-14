@@ -20,6 +20,7 @@ Standards, schemas, and protocol definitions for the CognitiveOS ecosystem.
 | `specs/security-model.md` | Trust boundary, process isolation, code integrity, incident response |
 | `specs/distro-build-spec.md` | Alpine image build process, partition layout, overlay structure |
 | `specs/boot-startup-analysis.md` | Complete boot/startup/process lifecycle analysis — gaps between specs and code |
+| `specs/boot-flow.md` | Detailed boot flow specification for ISO and Docker deployments |
 | `schemas/cognitive.schema.json` | JSON Schema for cognitive.json manifest |
 | `schemas/display-mcp.json` | Tool schema for display-mcp (render_image, render_video, screenshot) |
 | `schemas/audio-mcp.json` | Tool schema for audio-mcp (play, capture, tts, volume, mute) |
