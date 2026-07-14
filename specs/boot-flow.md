@@ -64,10 +64,23 @@ This is the critical phase where CognitiveOS services start. Services start in d
 ```
 openrc default
   │
-  ├── cograw                    [STARTS FIRST]
+  ├── cpm-boot-deps              [STARTS FIRST]
+  │   init script: /etc/init.d/cpm-boot-deps
+  │   command: /usr/local/bin/cpm install-dependencies --stage boot
+  │   depend: keyword -stop
+  │   one-shot: no PID file, runs once and exits
+  │
+  │   actions:
+  │     1. Read /var/lib/cpm/queue/ for boot-stage entries
+  │     2. Install system packages (kernel modules, firmware)
+  │     3. Mark entries as installed
+  │
+  │   result: boot-stage system dependencies are present
+  │
+  ├── cograw                    [STARTS SECOND]
   │   init script: /etc/init.d/cograw
   │   command: /usr/local/bin/cograw --model /cognitiveos/models/raw/raw-model.gguf
-  │   depend: need localmount, keyword -stop
+  │   depend: need localmount cpm-boot-deps, keyword -stop
   │   pidfile: /run/cograw.pid
   │   log: /cognitiveos/logs/cograw.log
   │
@@ -80,10 +93,10 @@ openrc default
   │
   │   result: raw.sock is available
   │
-  ├── coginfer                   [STARTS SECOND]
+  ├── coginfer                   [STARTS THIRD]
   │   init script: /etc/init.d/coginfer
   │   command: /usr/local/bin/coginfer --backend cgo --models /cognitiveos/models
-  │   depend: need localmount, keyword -stop
+  │   depend: need localmount cpm-boot-deps, keyword -stop
   │   pidfile: /run/coginfer.pid
   │   log: /cognitiveos/logs/coginfer.log
   │
@@ -94,19 +107,6 @@ openrc default
   │     4. Write PID to /run/coginfer.pid
   │
   │   result: HTTP :11434 is available
-  │
-  ├── cpm-boot-deps              [STARTS THIRD]
-  │   init script: /etc/init.d/cpm-boot-deps
-  │   command: /usr/local/bin/cpm install-dependencies --stage boot
-  │   depend: before cognitiveosd, keyword -stop
-  │   one-shot: no PID file, runs once and exits
-  │
-  │   actions:
-  │     1. Read /var/lib/cpm/queue/ for boot-stage entries
-  │     2. Install system packages (kernel modules, firmware)
-  │     3. Mark entries as installed
-  │
-  │   result: boot-stage system dependencies are present
   │
   ├── acpid                      [STARTS FOURTH]
   │   command: /usr/sbin/acpid
@@ -128,10 +128,10 @@ openrc default
   │     2. Open Unix socket /cognitiveos/run/daemon.sock
   │     3. Connect to cograw via raw.sock
   │        → net.Dial("unix", "/cognitiveos/run/raw.sock")
-  │        → SUCCEEDS because cograw is already running (Phase 4 step 1)
+  │        → SUCCEEDS because cograw is already running (Phase 4 step 2)
   │     4. Connect to coginfer via HTTP GET /health
   │        → http.Get("http://127.0.0.1:11434/health")
-  │        → SUCCEEDS because coginfer is already running (Phase 4 step 2)
+  │        → SUCCEEDS because coginfer is already running (Phase 4 step 3)
   │     5. Read /etc/cognitiveos/config.toml (Phase 3 fix)
   │     6. Apply env var overrides (COGNITIVEOS_*)
   │     7. Apply CLI flag overrides
@@ -148,12 +148,12 @@ openrc default
       command: /usr/local/bin/cpm install-dependencies --stage runtime
       depend: after cognitiveosd, keyword -start -stop
       one-shot: no PID file, runs once and exits
-
+  
       actions:
         1. Read /var/lib/cpm/queue/ for runtime-stage entries
         2. Install runtime packages (fonts, libraries)
         3. Mark entries as installed
-
+  
       result: runtime dependencies are present
 ```
 
@@ -259,10 +259,14 @@ docker run cognitiveos:<variant>
 ```
 entrypoint.sh:
   │
-  │  Step 1: Create runtime directories
+  │  Step 1: Process boot-stage system dependencies
+  │  /usr/local/bin/cpm install-dependencies --stage boot
+  │  → Installs kernel modules, firmware, etc.
+  │
+  │  Step 2: Create runtime directories
   │  mkdir -p /cognitiveos/run /cognitiveos/logs
   │
-  │  Step 2: Start cograw in background
+  │  Step 3: Start cograw in background
   │  /usr/local/bin/cograw --model /cognitiveos/models/raw/raw-model.gguf &
   │  COGRAW_PID=$!
   │  → Forks cograw into background
@@ -270,7 +274,7 @@ entrypoint.sh:
   │  → cograw opens /cognitiveos/run/raw.sock
   │  → cograw writes /run/cograw.pid
   │
-  │  Step 3: Wait for raw.sock
+  │  Step 4: Wait for raw.sock
   │  for i in $(seq 1 30); do
   │      [ -S /cognitiveos/run/raw.sock ] && break
   │      sleep 0.2
@@ -278,21 +282,21 @@ entrypoint.sh:
   │  → raw.sock appears after ~1-2s (model load time)
   │  → 30s timeout prevents infinite wait
   │
-  │  Step 4: Start coginfer in background
+  │  Step 5: Start coginfer in background
   │  /usr/local/bin/coginfer --backend cgo --models /cognitiveos/models &
   │  COGINFER_PID=$!
   │  → Forks coginfer into background
   │  → coginfer starts HTTP server on 127.0.0.1:11434
   │  → No model loaded yet (on-demand)
   │
-  │  Step 5: Wait for HTTP :11434
+  │  Step 6: Wait for HTTP :11434
   │  for i in $(seq 1 30); do
   │      wget -q --spider http://127.0.0.1:11434/health 2>/dev/null && break
   │      sleep 0.2
   │  done
   │  → HTTP available after ~0.5s
   │
-  │  Step 6: Start cognitiveosd in background
+  │  Step 7: Start cognitiveosd in background
   │  /usr/local/bin/cognitiveosd &
   │  DAEMON_PID=$!
   │  → cognitiveosd creates /cognitiveos/run/ directory
@@ -302,14 +306,18 @@ entrypoint.sh:
   │  → cognitiveosd spawns MCP bridges
   │  → cognitiveosd starts audit loop
   │
-  │  Step 7: Wait for daemon.sock
+  │  Step 8: Wait for daemon.sock
   │  for i in $(seq 1 30); do
   │      [ -S /cognitiveos/run/daemon.sock ] && break
   │      sleep 0.2
   │  done
   │  → daemon.sock appears after ~1-2s
   │
-  │  Step 8: Exec CLI
+  │  Step 9: Process runtime-stage system dependencies
+  │  /usr/local/bin/cpm install-dependencies --stage runtime
+  │  → Installs runtime fonts, libraries, etc.
+  │
+  │  Step 10: Exec CLI
   │  exec /usr/local/bin/cognitiveos-cli
   │  → Replaces entrypoint.sh shell process
   │  → CLI becomes direct child of tini
