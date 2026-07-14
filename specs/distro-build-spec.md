@@ -444,15 +444,15 @@ armv7 variants (edge, micro) compile llama.cpp C++ via QEMU user-mode emulation,
 The Docker image uses the same overlay as the bootable ISO but skips the mkimage step. All binaries, configs, and default directory structure are baked in.
 
 ### Entrypoint
-
-The image entrypoint is `/usr/local/bin/cognitiveos-cli`. On startup the CLI:
-
-1. Checks for the daemon Unix socket at `/cognitiveos/run/daemon.sock`
-2. If absent, spawns `cognitiveosd` as a child subprocess
-3. Waits up to 15 seconds for the socket to appear
-4. Connects and renders the Bubble Tea TUI
-
-No shell scripts, init systems, or supervisor processes are involved — the CLI manages the daemon lifecycle directly. When the CLI exits (Ctrl+D), it signals the daemon child and waits for clean shutdown.
+ 
+ The Docker image uses `/usr/local/bin/docker-init.sh` as the entrypoint. This script orchestrates the sequential startup of the system components:
+ 
+ 1. **cograw**: Starts first (in production or mock mode) and creates `/cognitiveos/run/raw.sock`.
+ 2. **coginfer**: Starts second, waiting for `raw.sock` to be ready.
+ 3. **cognitiveosd**: Starts third, waiting for `coginfer` to be healthy.
+ 4. **cognitiveos-cli**: Launched as the final process. If a TTY is detected, it runs in the foreground; otherwise, it is skipped to prevent container crash in headless mode.
+ 
+ This orchestration ensures that the system is fully operational before the UI is presented to the user.
 
 ### Limitations
 
