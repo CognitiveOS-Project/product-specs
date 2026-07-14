@@ -75,6 +75,138 @@ The daemon (`cognitiveosd`) is the hub. It connects to `cograw` via a Unix socke
 | cognitiveosd | cograw MUST be running | `return fmt.Errorf("FATAL: ...")` — exit | SIGTERM/SIGINT/SIGQUIT (graceful) |
 | cognitiveos-cli | cognitiveosd MUST be running | Retries 30s, then infinite reconnect loop | None (Bubble Tea handles) |
 
+## Binary Build and Install Chain
+
+### Source Repositories
+
+| Binary | Source Repo | Entry Point | Build Dependencies |
+|--------|------------|-------------|-------------------|
+| cograw | `inference` | `cmd/cograw/main.go` | Go, llama.cpp (CGo), cmake, build-base |
+| coginfer | `inference` | `cmd/coginfer/main.go` | Go, llama.cpp (CGo), cmake, build-base |
+| cognitiveosd | `cognitiveosd` | `cmd/cognitiveosd/main.go` | Go (pure, CGO_ENABLED=0) |
+| cognitiveos-cli | `cli` | `cmd/cognitiveos-cli/main.go` | Go (pure, CGO_ENABLED=0) |
+| cpm | `cpm` | `cmd/cpm/main.go` | Go (pure, CGO_ENABLED=0) |
+
+### Build Process
+
+Each repo has a `Makefile` with a `build` target that produces binaries at `<repo>/build/bin/`:
+
+| Repo | Build Command | Output |
+|------|--------------|--------|
+| inference | `make build` | `build/bin/cograw`, `build/bin/coginfer` |
+| cognitiveosd | `make build` | `build/bin/cognitiveosd` |
+| cli | `make build` | `build/bin/cognitiveos-cli` |
+| cpm | `make build` | `build/bin/cpm` |
+
+**inference build modes:**
+
+| Mode | Trigger | CGO | Result |
+|------|---------|-----|--------|
+| Mock | `CGO_ENABLED=0` | Off | Simulated backends, no llama.cpp |
+| Production | `CGO_ENABLED=1` | On | Links static llama.cpp via CGo |
+
+Production builds compile llama.cpp from source (vendored at `vendor/llama.cpp/`) via `build-llama` → `build-dependencies` Makefile targets.
+
+### Collection into Distro
+
+**Script:** `cognitiveos-alpine-distro/scripts/build-binaries.sh`
+
+Iterates repos in dependency order: `cpm → inference → core-mcp-bridges → cognitiveosd → cli`. For each repo, runs `make build` and copies everything from `<repo>/build/bin/*` into `cognitiveos-alpine-distro/build/bin/`.
+
+After collection:
+```
+cognitiveos-alpine-distro/build/bin/
+├── cograw           (from inference)
+├── coginfer         (from inference)
+├── cognitiveosd     (from cognitiveosd)
+├── cognitiveos-cli  (from cli)
+├── cpm              (from cpm)
+└── bridges/         (from core-mcp-bridges)
+```
+
+### Overlay Assembly
+
+**Script:** `cognitiveos-alpine-distro/scripts/build-overlay.sh`
+
+Lines 33-40 iterate `build/bin/*` and copy each binary into `overlay/usr/local/bin/`:
+
+```sh
+for f in "${BIN_DIR}"/*; do
+    [ -f "$f" ] || continue
+    name=$(basename "$f")
+    [ "$name" = "bridges" ] && continue
+    cp "$f" "${OVERLAY_DIR}/usr/local/bin/$name"
+    chmod 755 "${OVERLAY_DIR}/usr/local/bin/$name"
+done
+```
+
+Bridges (from `core-mcp-bridges`) go to `overlay/usr/local/lib/cognitiveos/bridges/` instead.
+
+**Note:** `overlay/usr/local/bin/` is git-tracked but always empty. It is cleared and repopulated by `build-overlay.sh` at build time.
+
+### Final Installed Paths
+
+| Binary | Source Repo | Overlay Path | ISO Path | Docker Path |
+|--------|------------|-------------|----------|-------------|
+| cograw | inference | `overlay/usr/local/bin/cograw` | `/usr/local/bin/cograw` | `/usr/local/bin/cograw` |
+| coginfer | inference | `overlay/usr/local/bin/coginfer` | `/usr/local/bin/coginfer` | `/usr/local/bin/coginfer` |
+| cognitiveosd | cognitiveosd | `overlay/usr/local/bin/cognitiveosd` | `/usr/local/bin/cognitiveosd` | `/usr/local/bin/cognitiveosd` |
+| cognitiveos-cli | cli | `overlay/usr/local/bin/cognitiveos-cli` | `/usr/local/bin/cognitiveos-cli` | `/usr/local/bin/cognitiveos-cli` |
+| cpm | cpm | `overlay/usr/local/bin/cpm` | `/usr/local/bin/cpm` | `/usr/local/bin/cpm` |
+| bridges | core-mcp-bridges | `overlay/usr/local/lib/cognitiveos/bridges/` | `/usr/local/lib/cognitiveos/bridges/` | `/usr/local/lib/cognitiveos/bridges/` |
+
+### How Each Deployment Gets Binaries
+
+**ISO (Alpine Linux):**
+
+1. `build-overlay.sh` populates `overlay/usr/local/bin/` with all binaries
+2. `genapkovl-cognitiveos.sh` tars the entire overlay into `.apkovl.tar.gz`:
+   ```sh
+   if [ -n "$COGNITIVEOS_OVERLAY_DIR" ] && [ -d "$COGNITIVEOS_OVERLAY_DIR" ]; then
+       (cd "$COGNITIVEOS_OVERLAY_DIR" && tar -cf - .) | (cd "$tmp" && tar -xf -)
+   fi
+   ```
+3. `build-image.sh` exports `COGNITIVEOS_OVERLAY_DIR` before calling `mkimage.sh`
+4. The `.apkovl.tar.gz` is embedded in the ISO root filesystem
+
+**Docker:**
+
+1. Builder stage runs `make docker.build` which calls `build-binaries.sh` + `build-overlay.sh`
+2. Binaries are copied to `/out/` in the builder container
+3. Final stage: `COPY --from=builder /out/ /` copies the overlay tree into the image root
+
+```dockerfile
+FROM golang:1.25-alpine AS builder
+# ... install build deps ...
+RUN make docker.build
+
+FROM alpine:edge
+COPY --from=builder /out/ /
+ENTRYPOINT ["/usr/local/bin/cognitiveos-cli"]
+```
+
+**Distro Tarball:**
+
+`scripts/build-distro-tarball.sh` copies `overlay/` into `rootfs/`:
+```
+cognitiveos-alpine-distro-<ver>/rootfs/usr/local/bin/{cograw,coginfer,cognitiveosd,cognitiveos-cli,cpm}
+```
+
+### The Gap: Binaries Exist, Init System Doesn't
+
+The build and install pipeline is **correct**. All 5 binaries are compiled, collected, and placed at `/usr/local/bin/` in both ISO and Docker images. The gap is purely in the init system:
+
+| Component | Status |
+|-----------|--------|
+| Binaries compiled | ✅ All 5 binaries build successfully |
+| Binaries installed | ✅ All at `/usr/local/bin/` in final image |
+| CLI launched | ✅ inittab respawns CLI on tty1 |
+| cograw launched | ❌ No OpenRC init script |
+| coginfer launched | ❌ No OpenRC init script |
+| cognitiveosd launched | ⚠️ CLI spawns it as fire-and-forget subprocess |
+| cpm-boot-deps executed | ❌ Script exists but never registered in runlevel |
+| cpm-runtime-deps executed | ❌ Script exists but never registered in runlevel |
+
 ## Spec References vs Actual Behavior
 
 ### Boot Sequence: ISO (Alpine Linux)
