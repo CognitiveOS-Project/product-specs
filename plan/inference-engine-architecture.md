@@ -346,7 +346,7 @@ import "C"
 
 ### Phase 4: Build Pipeline
 - Update `Dockerfile.build`: add cmake+gcc, `CGO_ENABLED=1`, git submodule init
-- Update `Dockerfile.release`: same
+- Update variant Dockerfiles: same
 - Update `scripts/build-binaries.sh`: add CGo build step
 - Remove `llama-cli` from `packages.x86_64`, `packages.aarch64`, `packages.armv7`
 - Add `build-essential`, `cmake`, `git` to distro packages
