@@ -665,13 +665,13 @@ Only daemon-relevant sections (`[daemon]`, `[raw_model]`, `[inference]`) should 
 
 ### Medium (Reliability)
 
-| # | Component | Issue | Files Affected |
-|---|-----------|-------|----------------|
-| 10 | cograw mock mode | No `--backend` flag for testing | `inference/cmd/cograw/` |
-| 11 | coginfer signal handling | No graceful shutdown | `inference/cmd/coginfer/main.go` |
-| 12 | CLI reconnection | Messages channel never closed | `cli/internal/client/client.go` |
-| 13 | config.Derive() | Overwrites --socket flag | `cognitiveosd/internal/config/config.go` |
-| 14 | MCPBinDir mismatch | Config default `/cognitiveos/bin` vs actual `/usr/local/lib/cognitiveos/bridges` | `cognitiveosd/internal/config/config.go` |
+| # | Component | Issue | Files Affected | Resolution |
+|---|-----------|-------|----------------|------------|
+| 10 | cograw mock mode | No `--backend` flag for testing | `inference/cmd/cograw/` | Add `--backend` flag (like coginfer) |
+| 11 | coginfer signal handling | No graceful shutdown | `inference/cmd/coginfer/main.go` | Replace bare `http.ListenAndServe` with `http.Server` + `Shutdown()` |
+| 12 | CLI reconnection | Messages channel never closed | `cli/internal/client/client.go` | Close `Messages` channel in `Close()` |
+| 13 | config.Derive() | Overwrites --socket flag | `cognitiveosd/internal/config/config.go` | Add `socketPathExplicit` bool, skip overwrite if set |
+| 14 | MCPBinDir mismatch | Config default `/cognitiveos/bin` vs actual `/usr/local/lib/cognitiveos/bridges` | `cognitiveosd/internal/config/config.go` | Change default to `/usr/local/lib/cognitiveos/bridges` |
 
 ### Low (Polish)
 
@@ -679,6 +679,19 @@ Only daemon-relevant sections (`[daemon]`, `[raw_model]`, `[inference]`) should 
 |---|-----------|-------|----------------|
 | 15 | registries.toml | Not read by any code | `overlay/etc/cognitiveos/registries.toml` |
 | 16 | image-manifest.json | Placeholder, overwritten at build | `overlay/etc/cognitiveos/image-manifest.json` |
+
+## Resolved Decisions
+
+The following design decisions have been made:
+
+| Decision | Resolution |
+|----------|-----------|
+| PID 1 vs CLI-spawned | **Follow distro-build-spec**: inittab spawns CLI, CLI spawns daemon. Matches code and original vision. |
+| Daemon spawns cograw | **Follow init system approach**: OpenRC starts cograw before cognitiveosd. No code change needed. Simpler, follows Linux conventions. |
+| config.toml reading | **Implement TOML parsing**: Align code with specs using `BurntSushi/toml`. |
+| Docker missing model handling | **Option A — degraded mode**: Entrypoint detects missing GGUF, logs warning, starts cograw with `--backend mock`, continues with coginfer and cognitiveosd. System operates in degraded mode (guardrail active, no inference). |
+| cograw backend selection | **Add `--backend` flag**: Currently compile-time only via build tags. Add runtime flag (like coginfer) to support mock mode for Docker degraded mode and testing. |
+| Docker health check tool | **BusyBox wget**: Available in all Alpine images by default. Works for plain HTTP on `127.0.0.1`. No package change needed. |
 
 ## References
 
