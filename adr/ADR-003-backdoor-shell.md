@@ -17,15 +17,15 @@ The system needs a guaranteed physical-access-only root shell that the AI cannot
 
 ## Decision
 
-Add two simultaneous physical backdoor shells monitored by the Raw Model. Both are triggered by keyboard combos intercepted at the kernel input layer — before the TUI or AI ever sees the keystrokes.
+Add two simultaneous physical backdoor shells monitored by coginit. Both are triggered by keyboard combos intercepted at the kernel input layer — before the TUI or AI ever sees the keystrokes.
 
 ### Backdoor A — VT Switch (same display)
 
 | Property | Value |
 |----------|-------|
 | Channel | Dedicated Linux VT (`/dev/tty2`) |
-| Trigger | Keyboard combo read from `evdev` by the Raw Model |
-| Activation | Raw Model calls `ioctl VT_ACTIVATE` to switch display to VT2, spawns `/bin/sh` |
+| Trigger | Keyboard combo read from `evdev` by coginit |
+| Activation | coginit calls `ioctl VT_ACTIVATE` to switch display to VT2, spawns `/bin/sh` |
 | Return | `exit` or `Ctrl+D` returns to the TUI VT |
 
 The TUI runs on VT1. The AI has no mechanism to switch VTs — `ioctl VT_ACTIVATE` is blocked by seccomp for all untrusted processes, and the AI communicates via sockets, not terminals.
@@ -36,7 +36,7 @@ The TUI runs on VT1. The AI has no mechanism to switch VTs — `ioctl VT_ACTIVAT
 |----------|-------|
 | Channel | UART on GPIO 14/15 (`/dev/ttyAMA0`) |
 | Trigger | Any keypress on the serial line, or the same keyboard combo |
-| Shell | `getty` or Raw Model-spawned `/bin/sh` on the serial device |
+| Shell | `getty` or coginit-spawned `/bin/sh` on the serial device |
 | AI visibility | `/dev/ttyAMA0` is blocked by seccomp and filesystem permissions |
 
 The serial console is the failsafe — it works even if the display is broken, the AI is hung, or the TUI is unresponsive.
@@ -53,22 +53,22 @@ All combos trigger both backdoors simultaneously. Implemented in this priority o
 | 4 | `ScrollLock` ×3 within 2 seconds | Obscure, hard to fat-finger, unlikely to collide |
 | 5 | `Super+Grave` (`` Win+` ``) | Common terminal escape in games and desktop environments |
 
-The combos are **compiled into the Raw Model firmware** — not loaded from any filesystem file. The AI cannot read, modify, or disable them.
+The combos are **compiled into the coginit binary** — not loaded from any filesystem file. The AI cannot read, modify, or disable them.
 
-### Implementation: Raw Model (cograw)
+### Implementation: coginit
 
-The keyboard combo handler lives in the Raw Model. It reads from `/dev/input/event*` via the `evdev` interface:
+The keyboard combo handler lives in coginit (PID 1 in bare-metal mode). It reads from `/dev/input/event*` via the evdev interface using pure syscall operations (no third-party dependencies):
 
 ```
-cograw startup
-  → Open /dev/input/event* (keyboard devices)
+coginit startup (bare-metal mode)
+  → Scan /dev/input/event* (keyboard devices via EVIOCGBIT)
   → Spawn goroutine: read evdev events in a loop
   → Maintain state machine per combo (key sequence matching)
   → On combo match:
       1. ioctl(fd, VT_ACTIVATE, 2)        // switch display to VT2
       2. ioctl(fd, VT_WAITACTIVE, 2)      // wait for switch
       3. fork + exec /bin/sh on /dev/tty2 // spawn root shell
-      4. exec getty on /dev/ttyAMA0       // ensure serial console
+      4. ensure /dev/ttyAMA0 available    // serial console
       5. Write access log entry
   → On shell exit (waitpid):
       1. ioctl(fd, VT_ACTIVATE, 1)        // switch back to TUI VT
@@ -90,7 +90,7 @@ cograw startup
 | Restrictions | None — full root shell, no chroot, no seccomp |
 | Environment | Minimal: `$TERM=linux`, default `PATH` |
 | Warning | Banner on shell start: `"BACKDOOR SHELL — CognitiveOS firmware override"` |
-| Logging | Every backdoor access logged to `/cognitiveos/logs/raw/backdoor.log` with timestamp + VT/combo used |
+| Logging | Every backdoor access logged to `/cognitiveos/logs/backdoor.log` with timestamp + VT/combo used |
 
 ### Why the AI Cannot Access the Backdoor
 
@@ -103,8 +103,8 @@ cograw startup
 | AI creates `uinput` device | `uinput` is blocked by seccomp — the Raw Model's filter denies `open` on `/dev/uinput` |
 | AI reads `/dev/ttyAMA0` | Blocked by filesystem permissions and seccomp |
 | AI sends serial break via ioctl | `TIOCSBRK` is blocked by seccomp |
-| AI reads backdoor.log | The log is under `/cognitiveos/logs/raw/` which is readable only by `root` — the AI runs as `widemodel` |
-| AI modifies combo table | Combos are compiled into the Raw Model binary, not stored in a filesystem file |
+| AI reads backdoor.log | The log is under `/cognitiveos/logs/` which is readable only by `root` — the AI runs as `widemodel` |
+| AI modifies combo table | Combos are compiled into the coginit binary, not stored in a filesystem file |
 
 ### Physical Security Assumption
 
@@ -127,7 +127,7 @@ The threat model assumes:
 **Negative:**
 - No password on the shell — physical access alone grants root (intentional: operator convenience in recovery scenarios)
 - Adding new combos requires a firmware reflash
-- The Raw Model binary increases in complexity (evdev parsing, state machine)
+- The coginit binary increases in complexity (evdev parsing, state machine)
 
 **Risks:**
 - Hotplug race: if a keyboard is plugged in during combo detection, the state machine could miss the combo (mitigated by inotify watch on `/dev/input/` — new devices are picked up within milliseconds)
@@ -143,5 +143,5 @@ The threat model assumes:
 ## References
 
 - `security-model.md` — trust boundaries, seccomp profile, physical security
-- `raw-model.md` — Raw Model responsibilities, RPC methods, startup sequence
+- `boot-flow.md` — coginit supervision architecture, backdoor monitor integration
 - `system-codes.md` — physical button combo patterns (RESET, SECURITY)
