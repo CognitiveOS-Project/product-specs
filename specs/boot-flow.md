@@ -495,7 +495,7 @@ Docker:
 
 ---
 
-## coginit — Unified PID 1 (Planned)
+## coginit — Unified PID 1 (Docker implemented, bare-metal planned)
 
 ### Vision
 

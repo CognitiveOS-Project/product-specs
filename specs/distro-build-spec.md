@@ -445,18 +445,16 @@ The Docker image uses the same overlay as the bootable ISO but skips the mkimage
 
 ### Entrypoint
 
-**Current:** The Docker image uses `/usr/local/bin/docker-init.sh` as the entrypoint. This shell script orchestrates the sequential startup of the system components.
+**Current:** The Docker image uses `coginit` as the entrypoint — a compiled Go binary that serves as unified PID 1 for both Docker and bare-metal environments. See `specs/boot-flow.md#coginit` for the full specification.
 
-**Planned:** `docker-init.sh` will be replaced by `coginit`, a compiled Go binary that serves as the unified PID 1 for both Docker and bare-metal environments. See `specs/boot-flow.md#coginit` for the full specification.
-
-The entrypoint sequence (both current and planned) is:
+The entrypoint sequence is:
 
 1. **Boot dependencies**: `cpm install-dependencies --stage boot`
 2. **cograw**: Starts first (in production or mock mode) and creates `/cognitiveos/run/raw.sock`.
 3. **coginfer**: Starts second, waiting for `raw.sock` to be ready.
 4. **cognitiveosd**: Starts third, waiting for `coginfer` to be healthy.
 5. **Runtime dependencies**: `cpm install-dependencies --stage runtime`
-6. **cognitiveos-cli**: Launched as the final process.
+6. **cognitiveos-cli**: Launched via `syscall.Exec` (replaces coginit process).
 
 This orchestration ensures that the system is fully operational before the UI is presented to the user.
 
