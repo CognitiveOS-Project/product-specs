@@ -632,6 +632,52 @@ coginit (PID 1)
   └── cognitiveos-cli  (foreground on /dev/tty1, supervised)
 ```
 
+### Supervision Architecture
+
+`coginit` owns all process lifecycles. It is the single supervisor — no other component restarts processes.
+
+#### Why coginit, not cognitiveosd?
+
+cognitiveosd is the application daemon (AI coordination, MCP servers, system codes). If cognitiveosd is hung or crashed, the CLI must still restart. Putting CLI supervision in cognitiveosd creates a dependency chain:
+
+```
+cognitiveosd supervises CLI → CLI dead when cognitiveosd hung (worse)
+coginit supervises CLI      → CLI alive regardless of cognitiveosd state (better)
+```
+
+coginit is PID 1 in bare-metal mode, starts before all engines, and has no dependency on any other component being healthy.
+
+#### Supervision hierarchy
+
+```
+coginit (PID 1)
+  ├── cograw           (restart on crash)
+  ├── coginfer         (restart on crash)
+  ├── cognitiveosd     (restart on crash)
+  └── cognitiveos-cli  (restart on crash, 500ms delay)
+```
+
+#### Communication vs supervision
+
+| Concern | Mechanism | Owner |
+|---------|-----------|-------|
+| CLI ↔ cognitiveosd data | daemon.sock (bidirectional JSON) | cognitiveosd |
+| CLI process restart | TUI supervision loop | coginit |
+| cognitiveosd process restart | Process supervision | coginit |
+| Engine process restart | Process supervision | coginit |
+
+cognitiveosd communicates with the CLI via daemon.sock (JSON messages). It does NOT supervise the CLI — that is coginit's responsibility.
+
+#### Failure matrix
+
+| Failure | What happens | Recovery |
+|---------|-------------|----------|
+| CLI crashes | coginit detects via waitpid | Restart in 500ms |
+| cognitiveosd crashes | coginit detects | Restart cognitiveosd, CLI reconnects |
+| cognitiveosd hung | CLI restarts anyway | CLI alive, shows "Connecting..." |
+| cograw/coginfer crash | coginit detects | Restart engines, cognitiveosd reconnects |
+| coginit crashes | System halt | Unavoidable for PID 1 |
+
 ### Signal Handling
 
 **Docker:**
