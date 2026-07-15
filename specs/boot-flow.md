@@ -495,6 +495,196 @@ Docker:
 
 ---
 
+## coginit — Unified PID 1 (Planned)
+
+### Vision
+
+`coginit` is a compiled Go binary that replaces the fragile shell-based init chain (`tini` + `docker-init.sh` for Docker, `busybox init` + OpenRC + inittab for bare-metal) with a single, auditable executable. It standardizes the CognitiveOS boot sequence across all deployment environments.
+
+### Design Principles
+
+1. **Compiled, not interpreted** — Go binary eliminates shell quoting, missing commands, and CRLF issues
+2. **Dual-boot detection** — auto-detects Docker vs bare-metal at runtime
+3. **Coexists with OpenRC** — handles only CognitiveOS services; OpenRC handles system services (networking, logging, hardware)
+4. **Same startup order** — identical service sequence in both environments
+5. **PID 1 responsibilities** — zombie reaping, signal handling, process supervision
+
+### Environment Detection
+
+```
+coginit starts as PID 1
+  → checks /.dockerenv, /run/.containerenv, $container env var
+  → if container detected: Docker mode
+  → else: bare-metal mode
+```
+
+### Docker Mode (replaces tini + docker-init.sh)
+
+```
+coginit (PID 1)
+  │
+  │  1. Start signal reaper (SIGCHLD, SIGINT, SIGTERM)
+  │
+  │  2. Install boot-stage dependencies
+  │     /usr/local/bin/cpm install-dependencies --stage boot
+  │
+  │  3. Create runtime directories
+  │     mkdir -p /cognitiveos/run /cognitiveos/logs
+  │
+  │  4. Start cograw (background)
+  │     /usr/local/bin/cograw --model ... --socket ... &
+  │     → cograw handles mock fallback internally (--backend flag)
+  │
+  │  5. Wait for raw.sock
+  │     polling /cognitiveos/run/raw.sock (10s timeout)
+  │
+  │  6. Start coginfer (background)
+  │     /usr/local/bin/coginfer --backend cgo --models ... &
+  │
+  │  7. Wait for HTTP :11434/health
+  │     polling with 200ms timeout (15s timeout)
+  │
+  │  8. Start cognitiveosd (background)
+  │     /usr/local/bin/cognitiveosd &
+  │
+  │  9. Wait for daemon.sock
+  │     polling /cognitiveos/run/daemon.sock (10s timeout)
+  │
+  │  10. Install runtime-stage dependencies
+  │      /usr/local/bin/cpm install-dependencies --stage runtime
+  │
+  │  11. Exec CLI (replaces coginit process)
+  │      syscall.Exec("/usr/local/bin/cognitiveos-cli")
+  │      → CLI becomes PID 1's replacement
+  │      → CLI connects to daemon.sock
+  │      → TUI renders: "CognitiveOS ready"
+```
+
+### Bare-Metal Mode (coexists with OpenRC)
+
+```
+coginit (PID 1, started by inittab or kernel init=/sbin/coginit)
+  │
+  │  1. Mount virtual filesystems (/proc, /sys, /dev, /run, /tmp, /dev/pts)
+  │
+  │  2. Start signal reaper (SIGCHLD, SIGINT, SIGTERM)
+  │
+  │  3. Configure loopback network
+  │
+  │  4. Install boot-stage dependencies
+  │     /usr/local/bin/cpm install-dependencies --stage boot
+  │
+  │  5. Start cograw (background)
+  │
+  │  6. Wait for raw.sock
+  │
+  │  7. Start coginfer (background)
+  │
+  │  8. Wait for HTTP :11434/health
+  │
+  │  9. Start cognitiveosd (background)
+  │
+  │  10. Wait for daemon.sock
+  │
+  │  11. Install runtime-stage dependencies
+  │      /usr/local/bin/cpm install-dependencies --stage runtime
+  │
+  │  12. TUI supervision loop
+  │      forever:
+  │        open /dev/tty1
+  │        exec cognitiveos-cli with TTY
+  │        wait for CLI exit
+  │        log exit reason
+  │        restart after 500ms
+```
+
+### Service Startup Order (Both Environments)
+
+```
+1. cpm install-dependencies --stage boot
+2. cograw → wait raw.sock
+3. coginfer → wait HTTP health
+4. cognitiveosd → wait daemon.sock
+5. cpm install-dependencies --stage runtime
+6. cognitiveos-cli (exec in Docker, supervised in bare-metal)
+```
+
+### Process Tree
+
+**Docker:**
+```
+coginit (PID 1, replaced by CLI after exec)
+  └── cognitiveos-cli (PID 2, exec'd)
+        └── connected to daemon.sock
+
+  Background processes (forked by coginit):
+    cograw       (listening on raw.sock)
+    coginfer     (listening on HTTP :11434)
+    cognitiveosd (listening on daemon.sock)
+```
+
+**Bare-Metal:**
+```
+coginit (PID 1)
+  ├── cograw           (background, listening on raw.sock)
+  ├── coginfer         (background, listening on HTTP :11434)
+  ├── cognitiveosd     (background, listening on daemon.sock)
+  └── cognitiveos-cli  (foreground on /dev/tty1, supervised)
+```
+
+### Signal Handling
+
+**Docker:**
+```
+docker stop
+  → Docker sends SIGTERM to PID 1 (coginit)
+  → coginit forwards SIGTERM to all children
+  → cognitiveos-cli: Bubble Tea cleanup, exit
+  → coginfer: graceful shutdown (Unload, close HTTP)
+  → cograw: graceful shutdown
+  → cognitiveosd: graceful shutdown, close daemon.sock
+  → coginit exits
+  → Container stops
+```
+
+**Bare-Metal:**
+```
+SIGTERM/SIGINT received
+  → coginit forwards SIGTERM to all children
+  → cognitiveos-cli: Bubble Tea cleanup, exit
+  → coginfer: graceful shutdown
+  → cograw: graceful shutdown
+  → cognitiveosd: graceful shutdown
+  → coginit calls syscall.Reboot(LINUX_REBOOT_CMD_POWER_OFF)
+  → System powers off
+```
+
+### What coginit Does NOT Handle
+
+| Concern | Owner | Reason |
+|---------|-------|--------|
+| System services (networking, logging, hardware) | OpenRC | OS-level, distro-specific |
+| Mock mode detection | cograw | Internal --backend flag |
+| Application logic (system codes, MCP bridges) | cognitiveosd | Application-level |
+| Package management | cpm | Standalone tool |
+
+### Build
+
+```bash
+# Static binary, no dynamic dependencies
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -ldflags '-extldflags "-static"' -o coginit .
+```
+
+### Flags
+
+| Flag | Description |
+|------|-------------|
+| `--docker` | Force Docker mode (auto-detected by default) |
+| `--bare-metal` | Force bare-metal mode (auto-detected by default) |
+| `--version` | Print version and exit |
+
+---
+
 ## References
 
 | Document | Topic |

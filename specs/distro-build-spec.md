@@ -444,15 +444,21 @@ armv7 variants (edge, micro) compile llama.cpp C++ via QEMU user-mode emulation,
 The Docker image uses the same overlay as the bootable ISO but skips the mkimage step. All binaries, configs, and default directory structure are baked in.
 
 ### Entrypoint
- 
- The Docker image uses `/usr/local/bin/docker-init.sh` as the entrypoint. This script orchestrates the sequential startup of the system components:
- 
- 1. **cograw**: Starts first (in production or mock mode) and creates `/cognitiveos/run/raw.sock`.
- 2. **coginfer**: Starts second, waiting for `raw.sock` to be ready.
- 3. **cognitiveosd**: Starts third, waiting for `coginfer` to be healthy.
- 4. **cognitiveos-cli**: Launched as the final process. If a TTY is detected, it runs in the foreground; otherwise, it is skipped to prevent container crash in headless mode.
- 
- This orchestration ensures that the system is fully operational before the UI is presented to the user.
+
+**Current:** The Docker image uses `/usr/local/bin/docker-init.sh` as the entrypoint. This shell script orchestrates the sequential startup of the system components.
+
+**Planned:** `docker-init.sh` will be replaced by `coginit`, a compiled Go binary that serves as the unified PID 1 for both Docker and bare-metal environments. See `specs/boot-flow.md#coginit` for the full specification.
+
+The entrypoint sequence (both current and planned) is:
+
+1. **Boot dependencies**: `cpm install-dependencies --stage boot`
+2. **cograw**: Starts first (in production or mock mode) and creates `/cognitiveos/run/raw.sock`.
+3. **coginfer**: Starts second, waiting for `raw.sock` to be ready.
+4. **cognitiveosd**: Starts third, waiting for `coginfer` to be healthy.
+5. **Runtime dependencies**: `cpm install-dependencies --stage runtime`
+6. **cognitiveos-cli**: Launched as the final process.
+
+This orchestration ensures that the system is fully operational before the UI is presented to the user.
 
 ### Limitations
 
