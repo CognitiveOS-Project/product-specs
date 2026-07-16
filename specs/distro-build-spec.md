@@ -15,6 +15,18 @@ Version: 1.0.0-draft
 | `rpi-zero` | armv7 | SD card image | Raspberry Pi Zero 2 W |
 | `embedded` | aarch64 | Raw partition image | Embedded devices with eMMC |
 
+## Planned Architecture Support
+
+The following architectures are planned for future builds but do not yet have CI pipelines, package files, or release workflows. See [ADR-006-riscv64-architecture.md](../adr/ADR-006-riscv64-architecture.md) for the full rationale.
+
+| Architecture | Alpine name | Docker platform | Go `GOARCH` | Target classes | Status | Rationale |
+|-------------|-------------|-----------------|-------------|----------------|--------|-----------|
+| `riscv64` | `riscv64` | `linux/riscv64` | `riscv64` | edge | Planned | Open ISA, growing AI edge SBC market, Go/Alpine native support |
+
+**Naming convention note:** RISC-V is the first architecture where Alpine, Docker, and Go all use the same name (`riscv64`). For x86, aarch64, and armv7, the three layers use different names (see [Platform Mapping](#platform-mapping)).
+
+**Schema status:** `riscv64` is already defined in the CGP manifest schema (`cognitive.schema.json`) and the `cpm` hardware audit enum (`cpm-spec.md`). No schema changes are needed.
+
 ## Base Image
 
 | Property | Value |
@@ -425,6 +437,7 @@ Docker buildx requires platform strings in `linux/<arch>` format. The Makefile m
 | `x86_64` | `linux/amd64` | standard, gateway |
 | `aarch64` | `linux/arm64` | titan, edge |
 | `armv7` | `linux/arm/v7` | edge, micro |
+| `riscv64` | `linux/riscv64` | edge (planned) |
 
 ### Build
 
@@ -478,7 +491,7 @@ cognitiveos-<semver>-<class>-<arch>.<ext>
 Where:
 - `<semver>` — SemVer version (e.g., `0.1.0`, `0.1.0-rc.1`)
 - `<class>` — Hardware tier class (see [raw-model.md](raw-model.md#distro-image-variants))
-- `<arch>` — Target architecture (`x86_64`, `aarch64`, `armv7`)
+- `<arch>` — Target architecture (`x86_64`, `aarch64`, `armv7`, `riscv64`)
 - `<ext>` — Image format (`iso`, `img`)
 
 Examples:
@@ -486,6 +499,7 @@ Examples:
 cognitiveos-0.1.0-standard-x86_64.iso
 cognitiveos-0.1.0-titan-aarch64.img
 cognitiveos-0.1.0-edge-armv7.img
+cognitiveos-0.2.0-edge-riscv64.img
 ```
 
 ### Config.toml
