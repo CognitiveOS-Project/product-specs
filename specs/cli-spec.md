@@ -1,12 +1,36 @@
 # CLI Specification
 
-Version: 1.0.0-draft
+Version: 1.1.0-draft
 
 ## Overview
 
-`cognitiveos-cli` is the human interface to CognitiveOS. It is a terminal user interface (TUI) that replaces the traditional desktop environment. It runs on tty1 (spawned by `/etc/inittab`) and connects to `cognitiveosd` via Unix socket.
+`cognitiveos-cli` is the human interface to CognitiveOS. It operates in two modes:
 
-The CLI is **thin** — it captures input and displays output. All intelligence and state live in cognitiveosd and the Wide Model. The CLI can crash and restart without affecting system stability.
+- **TUI mode** (default): Interactive terminal user interface with 7 display modes, keyboard shortcuts, and voice input. Replaces the traditional desktop environment.
+- **CLI mode** (`--cmd`): Non-interactive command-line interface for scripting, automation, and pipes. Sends a command, prints the response, and exits.
+
+Both modes use the same `internal/client` package to communicate with `cognitiveosd` via Unix socket. The binary is **thin** — it captures input and displays output. All intelligence and state live in cognitiveosd and the Wide Model. Either interface can crash and restart without affecting system stability.
+
+## Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--socket` | `/cognitiveos/run/daemon.sock` | Daemon socket path |
+| `--tui` | `false` | Launch interactive TUI (same as default) |
+| `--cmd <text>` | — | Send command, print response, exit (non-interactive) |
+| `--json` | `false` | Print full JSON envelope (requires `--cmd`) |
+| `--version` | — | Print version and exit |
+| `--help` | — | Print usage |
+
+### Usage
+
+```
+cognitiveos-cli                        # Launch TUI (default)
+cognitiveos-cli --tui                  # Launch TUI (explicit)
+cognitiveos-cli --cmd "what time"      # CLI: print plain text response
+cognitiveos-cli --cmd "show photos" --json  # CLI: print full JSON envelope
+cognitiveos-cli --version              # Print version
+```
 
 ## Connection
 
@@ -15,7 +39,7 @@ The CLI is **thin** — it captures input and displays output. All intelligence 
 - **Path:** `/cognitiveos/run/daemon.sock`
 - **Protocol:** JSON-over-Unix-stream (see cognitiveosd-api.md)
 
-### Startup
+### Startup (TUI Mode)
 
 1. CLI starts on tty1
 2. Renders idle screen
@@ -23,7 +47,15 @@ The CLI is **thin** — it captures input and displays output. All intelligence 
 4. Sends `status_request` to get current daemon state
 5. Enters main event loop
 
-### Reconnection
+### Startup (CLI Mode)
+
+1. Connects to daemon socket
+2. Sends `input_forward` with the command text
+3. Waits for `output_deliver` response (30 second timeout)
+4. Prints response (plain text or JSON)
+5. Exits with code 0 on success, 1 on error
+
+### Reconnection (TUI Mode)
 
 If the connection to cognitiveosd is lost:
 1. Display frozen state with message: "Connecting..."
@@ -31,11 +63,17 @@ If the connection to cognitiveosd is lost:
 3. After 30 seconds of failure: display "Daemon unavailable. Check system."
 4. Continue retrying indefinitely
 
-## Display Modes
+---
 
-The CLI renders in one of the following modes. Transitions between modes are instantaneous — no animations or transitions that could be mistaken for responsiveness.
+## TUI Mode
 
-### 1. Idle Mode
+The interactive terminal interface with 7 display modes.
+
+### Display Modes
+
+The TUI renders in one of the following modes. Transitions between modes are instantaneous — no animations or transitions that could be mistaken for responsiveness.
+
+#### 1. Idle Mode
 
 The default state when no interaction is occurring.
 
@@ -58,7 +96,7 @@ The default state when no interaction is occurring.
 - Press any printable character → switches to listening mode with that character pre-filled
 - Press `/` → starts voice capture
 
-### 2. Listening Mode
+#### 2. Listening Mode
 
 Active input state.
 
@@ -79,7 +117,7 @@ Active input state.
 - Keybindings active (see below)
 - Voice input alternative: shows waveform placeholder when capturing
 
-#### Voice Input
+##### Voice Input
 
 When the user presses `/`:
 1. CLI sends `input_forward` with `mode: "voice"` to cognitiveosd
@@ -90,7 +128,7 @@ When the user presses `/`:
 6. Transcript displayed as text, user confirms before execution
 7. User confirms (Enter) or edits
 
-### 3. Processing Mode
+#### 3. Processing Mode
 
 The Wide Model is processing the request.
 
@@ -110,7 +148,7 @@ The Wide Model is processing the request.
 - No text input accepted
 - Cancel via `Ctrl+C`: sends cancellation to daemon
 
-### 4. Responding Mode
+#### 4. Responding Mode
 
 The Wide Model is returning output.
 
@@ -135,7 +173,7 @@ The Wide Model is returning output.
 - New input prompt at bottom: `> ▊`
 - If media is included: transitions to Media Mode
 
-### 5. Media Mode
+#### 5. Media Mode
 
 Framebuffer overlay active (image or video playing).
 
@@ -159,7 +197,7 @@ Framebuffer overlay active (image or video playing).
 - Commands: `next`, `previous`, `close`, `save`, `zoom`
 - On `close`: framebuffer released, TUI returns to full screen
 
-### 6. Error Mode
+#### 6. Error Mode
 
 Something went wrong.
 
@@ -184,7 +222,7 @@ Something went wrong.
 - Suggested corrective action below
 - User can type a new command immediately
 
-### 7. Code Entry Mode
+#### 7. Code Entry Mode
 
 Entering a system code (visually distinct to prevent accidental input).
 
@@ -207,7 +245,7 @@ Entering a system code (visually distinct to prevent accidental input).
 - Used for: `unlock` code entry
 - `wake`/`idle`/`security`/`reset` codes use dedicated hardware buttons or simple voice commands
 
-## Keybindings
+### Keybindings
 
 | Key | Context | Action |
 |-----|---------|--------|
@@ -222,65 +260,148 @@ Entering a system code (visually distinct to prevent accidental input).
 | `Up/Down` | Listening | Scroll input history |
 | `Ctrl+L` | Any | Redraw screen |
 
-## Framebuffer Integration
+### Framebuffer Integration
 
-The CLI does not own the framebuffer. It renders to the terminal (tty1). When media needs to be displayed:
+The TUI does not own the framebuffer. It renders to the terminal (tty1). When media needs to be displayed:
 
-1. CLI receives `output_deliver` with `content_type: "media"`
-2. CLI renders a minimized overlay bar (3 lines at bottom of screen)
-3. CLI instructs display-mcp to take over the framebuffer
+1. TUI receives `output_deliver` with `content_type: "media"`
+2. TUI renders a minimized overlay bar (3 lines at bottom of screen)
+3. TUI instructs display-mcp to take over the framebuffer
 4. display-mcp renders the image/video to `/dev/fb0`
-5. CLI listens for commands in the overlay bar
+5. TUI listens for commands in the overlay bar
 6. On `close_media`:
-   - CLI instructs display-mcp to release the framebuffer
-   - CLI redraws the full TUI
+   - TUI instructs display-mcp to release the framebuffer
+   - TUI redraws the full screen
    - Terminal content is restored (the TUI handles this)
 
-## Output Rendering Rules
+### Output Rendering Rules
 
-### Text
+#### Text
 - Render verbatim in the TUI text area
 - Line wrapping at terminal width
 - Scrollable if output exceeds screen height (Shift+Up/Down to scroll)
 
-### Lists
+#### Lists
 - Detect markdown-style lists in output
 - Render with numbered bullets
 
-### Code Blocks
+#### Code Blocks
 - Detect markdown code fences in output
 - Render with monospace font and background highlight
 
-### Tables
+#### Tables
 - Detect markdown-style tables in output
 - Render with aligned columns
 
-### URLs
+#### URLs
 - Detect URLs in output
 - Render underlined (if terminal supports it)
 - Not clickable (no browser to open them in)
 
-## Crash Recovery
+### Crash Recovery
 
-The CLI is designed to crash safely:
+The TUI is designed to crash safely:
 
-1. If CLI crashes, the daemon continues running
-2. `/etc/inittab` respawns the CLI automatically (Alpine's `respawn` flag on the inittab entry)
-3. On restart, CLI connects to daemon → receives current status → renders appropriate screen
+1. If TUI crashes, the daemon continues running
+2. `/etc/inittab` respawns the TUI automatically (Alpine's `respawn` flag on the inittab entry)
+3. On restart, TUI connects to daemon → receives current status → renders appropriate screen
 4. Any in-progress operation continues in the background (daemon handles it)
 
-### Inittab Entry
+#### Inittab Entry
 
 ```
 tty1::respawn:/usr/local/bin/cognitiveos-cli
 ```
 
+---
+
+## CLI Mode
+
+Non-interactive command-line interface for scripting and automation.
+
+### Behavior
+
+1. Connects to daemon socket
+2. Sends `input_forward` with the command text
+3. Waits for `output_deliver` response
+4. Prints response and exits
+
+### Output Formats
+
+#### Plain Text (default)
+
+```
+$ cognitiveos-cli --cmd "what time is it"
+The time is 3:42 PM.
+```
+
+Extracts the `content` field from the `output_deliver` payload and prints it to stdout.
+
+#### JSON (`--json`)
+
+```
+$ cognitiveos-cli --cmd "what time is it" --json
+{
+  "type": "output_deliver",
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "from": "cognitiveosd",
+  "timestamp": "2026-07-16T15:42:00Z",
+  "payload": {
+    "content": "The time is 3:42 PM."
+  }
+}
+```
+
+Prints the full JSON envelope to stdout. Useful for parsing with `jq` or other tools.
+
+### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Error (connection failed, timeout, invalid flags) |
+
+### Timeouts
+
+- Connection: retries for 30 seconds, then fails
+- Response: waits 30 seconds for `output_deliver`, then times out
+
+### Examples
+
+```bash
+# Simple query
+cognitiveos-cli --cmd "check my email"
+
+# Pipe to jq
+cognitiveos-cli --cmd "system status" --json | jq '.payload'
+
+# Use in a script
+if cognitiveos-cli --cmd "verify package photo-viewer" 2>/dev/null; then
+    echo "Package verified"
+fi
+
+# Capture response
+response=$(cognitiveos-cli --cmd "what time is it")
+echo "AI says: $response"
+```
+
+### Limitations
+
+- No voice input (text only)
+- No media rendering (text output only)
+- No interactive editing (single command, single response)
+- No history or session state
+- No TUI display modes
+
+---
+
 ## Error States
 
-| State | Cause | CLI behavior |
-|-------|-------|-------------|
-| Daemon unreachable | cognitiveosd crashed | Retry forever, show "Connecting..." |
-| Daemon rejects connection | Socket permission error | Show "Permission denied. Check socket." Exit. |
-| MCP server unavailable | display-mcp crashed | Show "Display unavailable." Text-only mode. |
-| Audio device unavailable | No mic | Show "Microphone not found." Text-only mode. |
-| Wide Model not loaded | inference error | Show "AI engine not available." Try reload. |
+| State | Cause | TUI behavior | CLI behavior |
+|-------|-------|-------------|--------------|
+| Daemon unreachable | cognitiveosd crashed | Retry forever, show "Connecting..." | Exit with error after 30s |
+| Daemon rejects connection | Socket permission error | Show "Permission denied. Check socket." Exit. | Exit with error |
+| MCP server unavailable | display-mcp crashed | Show "Display unavailable." Text-only mode. | Print text response |
+| Audio device unavailable | No mic | Show "Microphone not found." Text-only mode. | N/A (no voice in CLI) |
+| Wide Model not loaded | inference error | Show "AI engine not available." Try reload. | Exit with error |
+| Response timeout | Wide Model too slow | Processing spinner continues | Exit with error after 30s |

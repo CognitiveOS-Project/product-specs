@@ -11,7 +11,7 @@ Standards, schemas, and protocol definitions for the CognitiveOS ecosystem.
 | `specs/filesystem-hierarchy.md` | Directory tree, partition layout, persistence rules |
 | `specs/mcp-conventions.md` | MCP tool naming, transport, error codes, registration |
 | `specs/cognitiveosd-api.md` | Daemon API: message types, startup/shutdown, error codes |
-| `specs/cli-spec.md` | CLI/TUI: display modes, keybindings, framebuffer integration |
+| `specs/cli-spec.md` | CLI/TUI: dual-mode interface — interactive TUI + non-interactive CLI |
 | `specs/cpm-spec.md` | Package manager: commands, install lifecycle, error handling |
 | `specs/inference-api.md` | Inference engine: Ollama-compatible API, model lifecycle |
 | `specs/registry-api.md` | Registry REST API: search, download, publish, unlock codes |

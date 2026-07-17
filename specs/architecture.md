@@ -102,12 +102,11 @@ The central system daemon:
 - Routes human input to the Wide Model
 - Manages Wide Model lifecycle
 
-### 6. UI Layer (cli)
+### 6. UI Layer (cognitiveos-cli)
 
-Thin terminal user interface (TUI):
-- Minimal text prompt ("Listening...")
-- Voice and text input
-- Direct framebuffer overlay for media
+Thin terminal interface with two modes:
+- **TUI mode** (default): Interactive terminal user interface with display modes, voice input, and framebuffer overlay
+- **CLI mode** (`--cmd`): Non-interactive command-line for scripting and automation
 - Connects to cognitiveosd via Unix socket
 - Stateless — can crash and restart safely
 
