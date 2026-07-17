@@ -13,10 +13,10 @@ See [ADR-007](../adr/ADR-007-registry-server-architecture.md) for the full archi
 ## Base URL
 
 ```
-https://registry-{country}-all-distros-official.registry.cognitive-os.org/v1
+https://registry-{country}-all-distros-official.cognitive-os.org/v1
 ```
 
-The primary official instance resolves at `https://registry-us-all-distros-official.registry.cognitive-os.org/v1`.
+The primary official instance resolves at `https://registry-us-all-distros-official.cognitive-os.org/v1`.
 
 All endpoints are prefixed with `/v1/`.
 

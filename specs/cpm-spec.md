@@ -613,12 +613,12 @@ Registry sources are configured in `/etc/cognitiveos/registries.toml`. The forma
 
 ```toml
 [official]
-primary = "https://registry-us-all-distros-official.registry.cognitive-os.org/v1"
+primary = "https://registry-us-all-distros-official.cognitive-os.org/v1"
 
 [official.mirrors]
-eu = "https://registry-eu-all-distros-official.registry.cognitive-os.org/v1"
-jp = "https://registry-jp-all-distros-official.registry.cognitive-os.org/v1"
-sg = "https://registry-sg-all-distros-official.registry.cognitive-os.org/v1"
+eu = "https://registry-eu-all-distros-official.cognitive-os.org/v1"
+jp = "https://registry-jp-all-distros-official.cognitive-os.org/v1"
+sg = "https://registry-sg-all-distros-official.cognitive-os.org/v1"
 
 [alternative]
 community = "https://community-registry.cognitive-os.org/v1"
@@ -629,7 +629,7 @@ my-private = "https://my-registry.example.com/v1"
 
 Official registry URLs follow this naming pattern:
 ```
-https://registry-{country}-{distro}-{role}.registry.cognitive-os.org/v1
+https://registry-{country}-{distro}-{role}.cognitive-os.org/v1
 ```
 
 | Segment | Description | Example |
