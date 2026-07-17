@@ -1,6 +1,6 @@
 # CognitiveOS Security Model
 
-Version: 1.0.0-draft
+Version: 1.1.0-draft
 
 ## Overview
 
@@ -22,6 +22,8 @@ CognitiveOS has a unique security posture: there are no user accounts, no permis
 │  /cognitiveos/models/raw/ (ro mount)     │
 │  /etc/cognitiveos/ (ro mount)            │
 │  /cognitiveos/firmware/ (ro partition)   │
+│  Registry SSH public keys (S3)           │
+│  Registry notary checksums (S3)          │
 └──────────┬──────────────────────────────┘
            │ Unix socket (restricted)
            │ VERIFIED BY: checksum at load
@@ -34,6 +36,17 @@ CognitiveOS has a unique security posture: there are no user accounts, no permis
 │  /cognitiveos/models/wide/ (writable)    │
 │  /cognitiveos/patches/ (writable)         │
 │  /cognitiveos/data/ (writable)            │
+└─────────────────────────────────────────┘
+
+┌─────────────────────────────────────────┐
+│       SUPPLY CHAIN PERIMETER             │
+│  Registry Server (notary proxy)          │
+│    - Stores SSH public keys              │
+│    - Stores manifest + checksums         │
+│    - Verifies publisher signatures       │
+│    - Re-verifies remote assets           │
+│  Publisher SSH private keys (off-device) │
+│  S3-compatible store (R2 default)        │
 └─────────────────────────────────────────┘
 ```
 
@@ -137,16 +150,49 @@ The daemon (`cognitiveosd`) does NOT run in a chroot — it needs full filesyste
 
 ### Supply Chain Verification
 
-Every `.cgp` patch downloaded from a registry includes a SHA-256 checksum in the registry metadata:
+Every `.cgp` patch published to the registry is authenticated via SSH key signature and stored with a SHA-256 checksum in S3. See [ADR-007](../adr/ADR-007-registry-server-architecture.md) and `registry-api.md` for the full protocol.
+
+#### Publisher Authentication
+
+```
+Publish flow:
+  1. Publisher registers SSH public key once (POST /v1/auth/register)
+  2. Server stores public key in S3 at auth/keys/{fingerprint}.pub
+  3. Publisher signs manifest SHA-256 hash with private key (SSHSIG protocol)
+  4. Server loads public key from S3, verifies signature
+  5. If valid → manifest + checksum stored in S3, publish accepted
+  6. If invalid → 401 Unauthorized, publish rejected
+```
+
+Server stores only public keys — no secrets are transmitted or stored.
+
+#### Download Verification
 
 ```
 Download flow:
-  1. cpm requests download → receives .cgp + checksum from registry
-  2. cpm computes SHA-256 of downloaded file
-  3. cpm compares computed checksum against registry-provided checksum
-  4. If mismatch: abort, delete download, report integrity error
-  5. If match: proceed with installation
+  1. cpm requests download → receives download_urls map from registry
+  2. cpm resolves variant (os/arch) → 302 redirect to canonical URL
+  3. cpm computes SHA-256 of downloaded file
+  4. cpm compares computed checksum against registry-provided checksum
+  5. If mismatch: abort, delete download, report integrity error
+  6. If match: proceed with installation
 ```
+
+#### Notary Check (Remote Verification)
+
+Before installation, cpm can verify the remote asset against the registry's stored checksum:
+
+```
+Notary check flow:
+  1. cpm sends GET /v1/notary/check?source=...&path=...&version=...
+  2. Server loads manifest from S3, resolves variant download URL
+  3. Server HEADs the download URL → checks ETag or computes SHA-256
+  4. Server compares remote hash against stored hash
+  5. Returns { verified: bool, stored_hash, remote_hash }
+  6. cpm aborts installation if verified=false
+```
+
+This detects tampering at the download source (e.g., compromised GitHub release) even after the original publish was valid.
 
 ### Manifests are Verified
 
@@ -161,6 +207,8 @@ When cognitiveosd spawns an MCP server from a .cgp patch, it:
 1. Reads the checksum from the installed `cognitive.json` (checksum of the .cgp archive at install time)
 2. Computes SHA-256 of the MCP server binary
 3. If mismatch: log warning, but proceed (the checksum covers the archive, not individual binaries — filesystem tampering would be detected here)
+
+For ongoing integrity, cpm can invoke `GET /v1/notary/check` at any time to re-verify the remote asset against the registry's stored checksum.
 
 ## Unlock Code Security
 
@@ -306,7 +354,9 @@ See [ADR-003](../adr/ADR-003-backdoor-shell.md) for the full specification.
 | cognitiveosd | Trusted | Root-owned, limited network, verified binary |
 | Wide Model | Untrusted | Arbitrary model, download from registry |
 | MCP servers | Untrusted | Arbitrary code from .cgp patches |
-| .cgp patches | Untrusted | From unknown authors, verified by checksum only |
-| Registry | Semi-trusted | Source of truth for checksums, unlock codes |
+| .cgp patches | Untrusted | From unknown authors, verified by SSH signature + checksum |
+| Registry | Semi-trusted | Source of truth for checksums, public keys, unlock codes; stores only public keys, never secrets |
+| Registry publisher keys | Semi-trusted | Publisher identity via SSH fingerprint; compromise detected by notary re-verification |
+| S3 store | Semi-trusted | Stores manifests + public keys; integrity ensured by S3 provider (R2, etc.) |
 | Human (backdoor shell) | Trusted for root shell | Physical access implies authority — keyboard combo required |
 | Human (code entry) | Trusted for codes | Physical access implies authority |
