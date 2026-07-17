@@ -8,7 +8,7 @@ CognitiveOS is an intent-centric, AI-native operating system. The human speaks o
 +-------------------------------------------------------------+
 |                     CognitiveOS                              |
 +-------------------------------------------------------------+
-|  UI Layer         |  cli (Go/Bubble Tea TUI)                 |
+|  UI Layer         |  cli (Go/Terminal User Interface TUI)      |
 |                   |  Direct Framebuffer Media (fbv/mpv)      |
 +-------------------+-----------------------------------------+
 |  Daemon Layer     |  cognitiveosd (system daemon)            |
@@ -104,7 +104,7 @@ The central system daemon:
 
 ### 6. UI Layer (cli)
 
-Thin Bubble Tea TUI:
+Thin terminal user interface (TUI):
 - Minimal text prompt ("Listening...")
 - Voice and text input
 - Direct framebuffer overlay for media

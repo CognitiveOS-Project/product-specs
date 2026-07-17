@@ -4,7 +4,7 @@ Version: 1.0.0-draft
 
 ## Overview
 
-`cognitiveos-cli` is the human interface to CognitiveOS. It is a Bubble Tea TUI that replaces the traditional desktop environment. It runs on tty1 (spawned by `/etc/inittab`) and connects to `cognitiveosd` via Unix socket.
+`cognitiveos-cli` is the human interface to CognitiveOS. It is a terminal user interface (TUI) that replaces the traditional desktop environment. It runs on tty1 (spawned by `/etc/inittab`) and connects to `cognitiveosd` via Unix socket.
 
 The CLI is **thin** — it captures input and displays output. All intelligence and state live in cognitiveosd and the Wide Model. The CLI can crash and restart without affecting system stability.
 
@@ -234,7 +234,7 @@ The CLI does not own the framebuffer. It renders to the terminal (tty1). When me
 6. On `close_media`:
    - CLI instructs display-mcp to release the framebuffer
    - CLI redraws the full TUI
-   - Terminal content is restored (Bubble Tea handles this via its `tea.Program`)
+   - Terminal content is restored (the TUI handles this)
 
 ## Output Rendering Rules
 

@@ -73,7 +73,7 @@ The daemon (`cognitiveosd`) is the hub. It connects to `cograw` via a Unix socke
 | cograw | Model file must exist on disk | `log.Fatalf` — immediate exit | SIGTERM/SIGINT (graceful shutdown) |
 | coginfer | None — starts in degraded mode | Mock backend serves canned responses | **None** — abrupt kill on SIGTERM |
 | cognitiveosd | cograw MUST be running | `return fmt.Errorf("FATAL: ...")` — exit | SIGTERM/SIGINT/SIGQUIT (graceful) |
-| cognitiveos-cli | cognitiveosd MUST be running | Retries 30s, then infinite reconnect loop | None (Bubble Tea handles) |
+| cognitiveos-cli | cognitiveosd MUST be running | Retries 30s, then infinite reconnect loop | None (TUI handles) |
 
 ## Binary Build and Install Chain
 
@@ -268,7 +268,7 @@ The daemon startup sequence in `cognitiveosd/internal/daemon/daemon.go` `Run()`:
 | 2 | If not, spawn `cognitiveosd` as subprocess (`cmd.Start()`, fire-and-forget) | ✅ |
 | 3 | Poll socket 8× at 250ms intervals (2s total) | ✅ |
 | 4 | Connect via Unix socket | ✅ |
-| 5 | Launch Bubble Tea TUI | ✅ |
+| 5 | Launch TUI | ✅ |
 | 6 | If daemon crashes, CLI dies too (no reconnect) | ⚠️ Bug — `Messages` channel never closed |
 
 ## Overlay inittab: Current vs Required

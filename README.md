@@ -35,7 +35,7 @@ Standards, schemas, and protocol definitions for the CognitiveOS ecosystem.
 | [product-specs](https://github.com/CognitiveOS-Project/product-specs) | Architecture | Standards and schemas (this repo) |
 | [cognitiveos-alpine-distro](https://github.com/CognitiveOS-Project/cognitiveos-alpine-distro) | Base OS | Alpine Linux image builder |
 | [cognitiveosd](https://github.com/CognitiveOS-Project/cognitiveosd) | Daemon | System daemon, codes, audits |
-| [cli](https://github.com/CognitiveOS-Project/cli) | UI | Bubble Tea TUI frontend |
+| [cli](https://github.com/CognitiveOS-Project/cli) | UI | Terminal User Interface (TUI) |
 | [cpm](https://github.com/CognitiveOS-Project/cpm) | Package | Package manager |
 | [inference](https://github.com/CognitiveOS-Project/inference) | Brain | LLM inference engine |
 | [core-mcp-bridges](https://github.com/CognitiveOS-Project/core-mcp-bridges) | Hardware | MCP hardware servers |

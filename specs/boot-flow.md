@@ -181,7 +181,7 @@ cognitiveos-cli starts on tty1:
 3. Send status_request to get current daemon state
    → receives daemon status (models loaded, patches installed, etc.)
 
-4. Launch Bubble Tea TUI
+4. Launch TUI
    → initialize terminal, set alternate screen buffer
    → create model with initial state = Idle
 
@@ -238,7 +238,7 @@ Signal propagation during shutdown:
 SIGTERM → cograw:   graceful shutdown, close raw.sock, free model
 SIGTERM → coginfer: graceful shutdown (Phase 4 fix), unload model, close HTTP
 SIGTERM → cognitiveosd: graceful shutdown, close daemon.sock, kill MCP bridges
-SIGTERM → cognitiveos-cli: Bubble Tea cleanup, restore terminal
+SIGTERM → cognitiveos-cli: TUI cleanup, restore terminal
 ```
 
 ---
@@ -347,7 +347,7 @@ docker stop cognitiveos
   → Docker sends SIGTERM to PID 1 (tini)
   → tini forwards SIGTERM to child process group
   → cognitiveos-cli receives SIGTERM
-  → Bubble Tea handles cleanup, restores terminal, exits
+  → TUI handles cleanup, restores terminal, exits
   → tini waits for child to exit
   → tini propagates exit code to Docker
   → Docker sends SIGKILL to remaining processes after timeout (default 10s)
@@ -361,7 +361,7 @@ With Phase 4 fixes (coginfer signal handling):
 docker stop cognitiveos
   → Docker sends SIGTERM to PID 1 (tini)
   → tini forwards SIGTERM to process group
-  → cognitiveos-cli: Bubble Tea cleanup, exit
+  → cognitiveos-cli: TUI cleanup, exit
   → coginfer: trap SIGTERM, call Unload(), close HTTP, exit
   → cograw: already has signal handling, graceful shutdown
   → cognitiveosd: already has SIGTERM handling, graceful shutdown
@@ -685,7 +685,7 @@ cognitiveosd communicates with the CLI via daemon.sock (JSON messages). It does 
 docker stop
   → Docker sends SIGTERM to PID 1 (coginit)
   → coginit forwards SIGTERM to all children
-  → cognitiveos-cli: Bubble Tea cleanup, exit
+  → cognitiveos-cli: TUI cleanup, exit
   → coginfer: graceful shutdown (Unload, close HTTP)
   → cograw: graceful shutdown
   → cognitiveosd: graceful shutdown, close daemon.sock
@@ -697,7 +697,7 @@ docker stop
 ```
 SIGTERM/SIGINT received
   → coginit forwards SIGTERM to all children
-  → cognitiveos-cli: Bubble Tea cleanup, exit
+  → cognitiveos-cli: TUI cleanup, exit
   → coginfer: graceful shutdown
   → cograw: graceful shutdown
   → cognitiveosd: graceful shutdown
