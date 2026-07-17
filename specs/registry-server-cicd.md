@@ -95,7 +95,7 @@ jobs:
 | `S3_ACCESS_KEY` | `R2_ACCESS_KEY` | R2 API token |
 | `S3_SECRET_KEY` | `R2_SECRET_KEY` | R2 API token secret |
 | `S3_REGION` | — | Fixed: `auto` |
-| `BASE_DOMAIN` | `BASE_DOMAIN` | Domain (default: `cognitive-os.org`) |
+| `BASE_DOMAIN` | `BASE_DOMAIN` | Domain (default: `registry.cognitive-os.org`) |
 
 ### Domain Mapping
 
@@ -111,7 +111,7 @@ https://registry-{country}-{distro}-{role}.{BASE_DOMAIN}/v1
 | `{distro}` | `all-distros`, `cognitiveos` | `all-distros` |
 | `{role}` | `official`, `mirror`, `alternative` | `official` |
 
-Primary instance: `registry-us-all-distros-official.cognitive-os.org`
+Primary instance: `registry-us-all-distros-official.registry.cognitive-os.org`
 
 Domain mapping is deferred — initial deployment uses Cloud Run's default `*.run.app` URL.
 
@@ -123,7 +123,7 @@ Domain mapping is deferred — initial deployment uses Cloud Run's default `*.ru
 |--------|--------|---------|
 | `GCP_PROJECT_ID` | GCP Console | Google Cloud project ID |
 | `GCP_SA_KEY` | GCP IAM → Service Accounts → JSON key | Deploy authentication |
-| `BASE_DOMAIN` | Configurable | Base domain (default: `cognitive-os.org`) |
+| `BASE_DOMAIN` | Configurable | Base domain (default: `registry.cognitive-os.org`) |
 | `R2_ENDPOINT` | Cloudflare R2 dashboard | S3-compatible endpoint |
 | `R2_BUCKET` | Cloudflare R2 dashboard | Bucket name |
 | `R2_ACCESS_KEY` | Cloudflare R2 API tokens | S3 authentication |
