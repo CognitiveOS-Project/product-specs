@@ -12,7 +12,7 @@ See [ADR-007](../adr/ADR-007-registry-server-architecture.md) for the full archi
 
 ### Official Packages (cognitive-os.org)
 
-Official CognitiveOS packages are published to the official registry at `registry-us-all-distros-official.cognitive-os.org`. The publisher authenticates with their SSH key. The registry server handles file hosting — it receives the `.cgp` archive, uploads it to GitHub Org Releases on the official org, and stores the manifest in R2.
+Official CognitiveOS packages are published to the official registry at `registry-us-all-distros-official.cognitive-os.org`. The publisher authenticates with their SSH key. The registry server handles file hosting — it receives the `.cgp` archive, uploads it to GitHub Org Releases on the official org, and stores the manifest in S3-compatible storage.
 
 ```
 cpm publish hello-cognitive --tag vision
@@ -21,7 +21,7 @@ cpm publish hello-cognitive --tag vision
 - Publisher authenticates with SSH key (no GitHub token needed)
 - Registry server is the trusted intermediary
 - File hosting is automatic (GitHub Org Releases)
-- Manifest and checksums are stored in R2 (notary)
+- Manifest and checksums are stored in S3-compatible storage (notary)
 
 ### Third-Party Packages (UPR)
 
@@ -39,7 +39,7 @@ No registration with the official notary is required. The author controls hostin
 ### Sequence Diagram
 
 ```
-Publisher                    CognitiveOS registry-server           GitHub Org Releases           R2 (Notary)
+Publisher                    CognitiveOS registry-server           GitHub Org Releases           S3 (Notary)
    |                                |                               |                        |
    |  cpm publish ./patch.cgp      |                               |                        |
    |  → read manifest from .cgp    |                               |                        |
@@ -71,7 +71,7 @@ Publisher                    CognitiveOS registry-server           GitHub Org Re
    |                               |  5. Delete temp file          |                        |
    |                               |                               |                        |
    |                               |  6. Store manifest + metadata ──────────────────────►  |
-   |                               |     in R2 notary bucket       |                        |
+   |                               |     in S3 notary bucket      |                        |
    |                               |                               |                        |
    |  ◄──── 201 Created ──────────│                               |                        |
    |      { name, version,         |                               |                        |
@@ -89,12 +89,12 @@ Publisher                    CognitiveOS registry-server           GitHub Org Re
 7. **Registry creates** a GitHub Release on the official org's package repo
 8. **Registry uploads** the `.cgp` as a release asset
 9. **Registry deletes** the temp file
-10. **Registry stores** manifest + checksum in R2 notary bucket
+10. **Registry stores** manifest + checksum in S3 notary bucket
 11. **Registry returns** 201 with the `download_url` pointing to the GitHub Release asset
 
 After this flow:
 - The `.cgp` file lives permanently on GitHub Org Releases
-- The manifest + checksum live permanently in R2
+- The manifest + checksum live permanently in S3-compatible storage
 - Registry-server is stateless — no files persist
 
 ## Authentication
@@ -143,7 +143,7 @@ Server:
   1. Extract fingerprint from X-SSH-Fingerprint header
   2. Load public key from S3: auth/keys/{fingerprint}.pub
   3. Verify signature against manifest SHA-256 hash
-  4. If valid → process upload, store metadata in R2
+  4. If valid → process upload, store metadata in S3-compatible storage
   5. If invalid → return 401 Unauthorized
 ```
 
@@ -188,7 +188,7 @@ cpm install https://example.com/skill.cgp
 
 ### Why GitHub Org Releases
 
-| Criterion | GitHub Org Releases | R2/S3 | Self-hosted |
+| Criterion | GitHub Org Releases | S3-compatible | Self-hosted |
 |-----------|----------------|-------|-------------|
 | **Free tier** | Unlimited (public repos) | 10 GB + 10M reads | N/A |
 | **CDN** | Global (Fastly) | Cloudflare | Manual |
@@ -401,7 +401,7 @@ For large `.cgp` files (packages with model weights), registry-server can genera
 4. Registry-server returns 202 with presigned URL
 5. CPM uploads .cgp directly to GitHub using presigned URL
 6. Registry-server polls for upload completion
-7. Registry-server stores manifest in R2
+7. Registry-server stores manifest in S3-compatible storage
 ```
 
 This requires the GitHub token to be on registry-server (not on the client).
