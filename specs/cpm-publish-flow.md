@@ -12,7 +12,7 @@ See [ADR-007](../adr/ADR-007-registry-server-architecture.md) for the full archi
 
 ### Official Packages (cognitive-os.org)
 
-Official CognitiveOS packages are published to the official registry at `registry-us-all-distros-official.cognitive-os.org`. The publisher authenticates with their SSH key. The registry server handles file hosting — it receives the `.cgp` archive, uploads it to GitHub Releases on the official org, and stores the manifest in R2.
+Official CognitiveOS packages are published to the official registry at `registry-us-all-distros-official.cognitive-os.org`. The publisher authenticates with their SSH key. The registry server handles file hosting — it receives the `.cgp` archive, uploads it to GitHub Org Releases on the official org, and stores the manifest in R2.
 
 ```
 cpm publish hello-cognitive --tag vision
@@ -20,12 +20,12 @@ cpm publish hello-cognitive --tag vision
 
 - Publisher authenticates with SSH key (no GitHub token needed)
 - Registry server is the trusted intermediary
-- File hosting is automatic (GitHub Releases)
+- File hosting is automatic (GitHub Org Releases)
 - Manifest and checksums are stored in R2 (notary)
 
 ### Third-Party Packages (UPR)
 
-Third-party packages are published by the author to their own hosting (GitHub Releases, personal server, etc.) and registered with any compatible notary. Consumers install via the Universal Protocol Router:
+Third-party packages are published by the author to their own hosting (GitHub Org Releases, personal server, etc.) and registered with any compatible notary. Consumers install via the Universal Protocol Router:
 
 ```
 cpm install github:author/skill@v1.0.0
@@ -39,7 +39,7 @@ No registration with the official notary is required. The author controls hostin
 ### Sequence Diagram
 
 ```
-Publisher                    Cloud Run (Registry)               GitHub Releases           R2 (Notary)
+Publisher                    CognitiveOS registry-server           GitHub Org Releases           R2 (Notary)
    |                                |                               |                        |
    |  cpm publish ./patch.cgp      |                               |                        |
    |  → read manifest from .cgp    |                               |                        |
@@ -85,7 +85,7 @@ Publisher                    Cloud Run (Registry)               GitHub Releases 
 3. **CPM signs the hash** with the publisher's SSH private key (ed25519)
 4. **CPM sends** the `.cgp` binary + metadata to `POST /v1/patches` with SSH auth headers
 5. **Registry verifies** the SSH signature against the registered public key
-6. **Registry stores** the `.cgp` as a temp file (ephemeral filesystem on Cloud Run)
+6. **Registry stores** the `.cgp` as a temp file (ephemeral filesystem on registry-server)
 7. **Registry creates** a GitHub Release on the official org's package repo
 8. **Registry uploads** the `.cgp` as a release asset
 9. **Registry deletes** the temp file
@@ -93,9 +93,9 @@ Publisher                    Cloud Run (Registry)               GitHub Releases 
 11. **Registry returns** 201 with the `download_url` pointing to the GitHub Release asset
 
 After this flow:
-- The `.cgp` file lives permanently on GitHub Releases
+- The `.cgp` file lives permanently on GitHub Org Releases
 - The manifest + checksum live permanently in R2
-- Cloud Run is stateless — no files persist
+- Registry-server is stateless — no files persist
 
 ## Authentication
 
@@ -164,7 +164,7 @@ The registry server accepts **either** SSH key auth **or** bearer token auth on 
 
 ### Official Packages
 
-Official `.cgp` files are hosted on **GitHub Releases** in dedicated per-package repos under the `CognitiveOS-CGP-Packages` organization.
+Official `.cgp` files are hosted on **GitHub Org Releases** in dedicated per-package repos under the `CognitiveOS-CGP-Packages` organization.
 
 **Repo naming:** `CognitiveOS-CGP-Packages/{package-name}` (e.g., `CognitiveOS-CGP-Packages/hello-cognitive`)
 
@@ -186,9 +186,9 @@ cpm install github:author/skill@v1.0.0
 cpm install https://example.com/skill.cgp
 ```
 
-### Why GitHub Releases
+### Why GitHub Org Releases
 
-| Criterion | GitHub Releases | R2/S3 | Self-hosted |
+| Criterion | GitHub Org Releases | R2/S3 | Self-hosted |
 |-----------|----------------|-------|-------------|
 | **Free tier** | Unlimited (public repos) | 10 GB + 10M reads | N/A |
 | **CDN** | Global (Fastly) | Cloudflare | Manual |
@@ -200,7 +200,7 @@ cpm install https://example.com/skill.cgp
 
 ## Infrastructure Constraints
 
-### Cloud Run (Registry Server)
+### Registry Server (CognitiveOS registry-server)
 
 | Constraint | Value | Impact |
 |---|---|---|
@@ -213,7 +213,7 @@ cpm install https://example.com/skill.cgp
 | **Scale to zero** | Yes (`min-instances=0`) | No idle cost |
 | **Current config** | 512 MiB, 1 vCPU, 300s timeout | Adequate for metadata-only operations |
 
-**Egress alternative:** Cloud Run Standard Tier offers **200 GiB/month** free egress (vs. 1 GiB on Premium). This can be opted in via GCP Console if egress becomes a bottleneck.
+**Egress alternative:** Standard Tier offers **200 GiB/month** free egress (vs. 1 GiB on Premium). This can be opted in via cloud provider console if egress becomes a bottleneck.
 
 ### GitHub API
 
@@ -228,12 +228,12 @@ cpm install https://example.com/skill.cgp
 
 ### How Constraints Are Resolved
 
-**32 MB request limit:** The `.cgp` binary is included in the multipart upload to Cloud Run. For files under 32 MB, this works directly. For larger files (packages with model weights), the upload will fail.
+**32 MB request limit:** The `.cgp` binary is included in the multipart upload to registry-server. For files under 32 MB, this works directly. For larger files (packages with model weights), the upload will fail.
 
 **Resolution options for large packages:**
 1. Split weights from the core `.cgp` — weights are downloaded separately via `cpm download-weights` (already supported)
-2. Use a presigned upload URL — Cloud Run generates a presigned GitHub upload URL, CPM uploads directly to GitHub
-3. CPM uploads `.cgp` to GitHub directly, then sends only metadata to Cloud Run (requires GH token on client)
+2. Use a presigned upload URL — registry-server generates a presigned GitHub upload URL, CPM uploads directly to GitHub
+3. CPM uploads `.cgp` to GitHub directly, then sends only metadata to registry-server (requires GH token on client)
 
 **Recommended approach:** Option 1 (split weights) is already the CPM architecture. The core `.cgp` (manifest + prompts + small binaries) stays under 32 MB. Large weights are handled by `cpm download-weights` from Hugging Face or other weight providers.
 
@@ -392,19 +392,19 @@ curl "https://registry-us-all-distros-official.cognitive-os.org/v1/notary/check?
 
 ### Presigned Upload URLs
 
-For large `.cgp` files (packages with model weights), Cloud Run can generate a presigned GitHub upload URL and return it to CPM. CPM uploads directly to GitHub, bypassing the 32 MB request limit:
+For large `.cgp` files (packages with model weights), registry-server can generate a presigned GitHub upload URL and return it to CPM. CPM uploads directly to GitHub, bypassing the 32 MB request limit:
 
 ```
-1. CPM sends metadata + SSH signature to Cloud Run
-2. Cloud Run verifies signature
-3. Cloud Run generates presigned GitHub upload URL
-4. Cloud Run returns 202 with presigned URL
+1. CPM sends metadata + SSH signature to registry-server
+2. Registry-server verifies signature
+3. Registry-server generates presigned GitHub upload URL
+4. Registry-server returns 202 with presigned URL
 5. CPM uploads .cgp directly to GitHub using presigned URL
-6. Cloud Run polls for upload completion
-7. Cloud Run stores manifest in R2
+6. Registry-server polls for upload completion
+7. Registry-server stores manifest in R2
 ```
 
-This requires the GitHub token to be on Cloud Run (not on the client).
+This requires the GitHub token to be on registry-server (not on the client).
 
 ### Package Signing (Future)
 
