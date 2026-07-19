@@ -96,6 +96,8 @@ jobs:
 | `S3_SECRET_KEY` | `R2_SECRET_KEY` | R2 API token secret |
 | `S3_REGION` | — | Fixed: `auto` |
 | `BASE_DOMAIN` | `BASE_DOMAIN` | Domain (default: `cognitive-os.org`) |
+| `REGISTRY_GH_TOKEN` | `REGISTRY_GH_TOKEN` | GitHub PAT (repo scope) — creates releases + uploads assets |
+| `REGISTRY_GH_ORG` | `REGISTRY_GH_ORG` | GitHub org for official package storage |
 
 ### Domain Mapping
 
@@ -128,6 +130,8 @@ Domain mapping is deferred — initial deployment uses Cloud Run's default `*.ru
 | `R2_BUCKET` | Cloudflare R2 dashboard | Bucket name |
 | `R2_ACCESS_KEY` | Cloudflare R2 API tokens | S3 authentication |
 | `R2_SECRET_KEY` | Cloudflare R2 API tokens | S3 authentication |
+| `REGISTRY_GH_TOKEN` | GitHub PAT (`repo` scope) | Official publish — creates repos, releases, uploads assets |
+| `REGISTRY_GH_ORG` | GitHub org name | Official publish — target org for package storage |
 
 ### Setup Scripts
 

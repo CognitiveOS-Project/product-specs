@@ -404,7 +404,7 @@ For large `.cgp` files (packages with model weights), registry-server can genera
 7. Registry-server stores manifest in S3-compatible storage
 ```
 
-This requires the GitHub token to be on registry-server (not on the client).
+This requires `REGISTRY_GH_TOKEN` (PAT with `repo` scope) on registry-server, not on the client.
 
 ### Package Signing (Future)
 
