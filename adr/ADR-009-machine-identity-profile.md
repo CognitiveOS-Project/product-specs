@@ -6,6 +6,8 @@
 
 ## Context
 
+### The Problem
+
 Today, any machine that generates an SSH key can `cpm auth register` and immediately `cpm publish` to the registry. There is no gating, no approval, and no identity beyond the key itself. This creates a supply chain risk — unvetted machines can publish packages to the official registry.
 
 The current auth flow:
@@ -17,6 +19,38 @@ Machine generates SSH key → cpm auth register → cpm publish
 ```
 
 We need a **signup layer** that evaluates both the machine and its owner before granting publish access.
+
+### Why cpm Needs Machine Identity
+
+`cpm` is the package manager that runs on CognitiveOS machines. It is the tool that publishes, installs, and manages `.cgp` packages. Without machine identity, cpm has no way to:
+
+1. **Prove it runs on a legitimate machine** — anyone can run `cpm publish` from any device. There is no proof that the machine exists, has real hardware, or is operated by a known owner.
+2. **Establish accountability** — when a package is published, the registry knows only a SSH fingerprint. If that package contains malware, there is no way to trace it back to a responsible human.
+3. **Enforce hardware requirements** — some packages require specific hardware (GPU, NPU, minimum RAM). The registry cannot verify that the publishing machine meets these requirements.
+4. **Build trust over time** — a machine that has published 50 verified packages should be trusted more than a brand-new machine. Without identity, every machine starts from zero.
+
+`cpm signup` gives cpm a machine-native identity mechanism. The machine proves what it IS (hardware + software) and who OWNS it (the human responsible). This is not a credential — it is an inherent property of the machine itself.
+
+### Why the Registry Server Needs Machine Identity
+
+The registry server is the central notary for `.cgp` packages. It stores metadata, checksums, and public keys. Without machine identity, the registry has no way to:
+
+1. **Gate who can publish** — today, the only gate is "can you generate an SSH key." That is trivially easy. The registry needs a stronger signal of legitimacy.
+2. **Apply rules before granting access** — the registry operator needs to say "only machines with TPM can publish" or "only owners in the CognitiveOS org can publish." Without a machine profile, there is nothing to apply rules against.
+3. **Detect compromised publishers** — if a registered key is compromised, the attacker can publish from any machine. With machine identity, the registry can detect that a key is being used from an unexpected machine profile.
+4. **Audit the supply chain** — when a security incident occurs, the registry needs to answer: "which machine published this, who owns it, what hardware/software was it running?" Without machine identity, the answer is just "a machine with this SSH fingerprint."
+5. **Support different trust levels** — not all publishers are equal. A machine with TPM, known hardware, and a verified owner should have higher trust than an anonymous machine. Machine identity enables tiered trust.
+
+The registry server evaluates the machine identity profile against configurable rules. Rules are the policy layer — they determine which machines are trusted to publish, based on their inherent properties.
+
+### The Gap
+
+| What exists today | What is missing |
+|-------------------|-----------------|
+| SSH key authentication | Machine identity (hardware + software profile) |
+| Publisher fingerprint | Owner identity (who controls the machine) |
+| Instant publish access | Gated approval (signup → rules → approve/reject) |
+| No accountability | Traceable: machine + owner for every published package |
 
 ## Decision
 
@@ -334,10 +368,13 @@ Per the principle of no credential storage:
 | Aspect | Today | After ADR-009 |
 |--------|-------|---------------|
 | Who can register keys | Any machine | Only approved machines |
-| Identity | SSH key only | Machine profile + owner key |
+| Identity | SSH key only | Machine profile (hardware + software) + owner key |
 | Approval | None (instant) | Rule-based auto-approval or manual review |
 | Accountability | Key fingerprint only | Machine profile + owner identity |
 | Gate between register and publish | None | Signup → approval → register → publish |
+| Supply chain audit | SSH fingerprint | Full machine + owner trail for every publish |
+| Trust levels | Binary (registered or not) | Tiered (rules evaluate profile for trust level) |
+| Compromise detection | None | Profile mismatch → anomaly detected |
 
 ### Rejected Alternatives
 
