@@ -18,6 +18,15 @@ Machine generates SSH key → cpm auth register → cpm publish
                                               No gate here
 ```
 
+The new auth flow with machine identity:
+
+```
+cpm auth signup → cpm auth register → cpm auth login → cpm publish
+      ↑                ↑                   ↑               ↑
+ Machine profile   Gate: signup       Store key path    SSH signed
+ + owner key       approved           locally           request
+```
+
 We need a **signup layer** that evaluates both the machine and its owner before granting publish access.
 
 ### Why cpm Needs Machine Identity
@@ -105,10 +114,18 @@ Machine                          Registry Server
   │                                     │     Store key
   │  ◄── 201 Key registered ───────────│
   │                                     │
-  │  5. cpm publish                     │
-  │  → SSH signed request               │
+  │  5. cpm auth login                  │
+  │  → stores key path locally          │
+  │  → PUT /v1/auth/status              │
   │  ─────────────────────────────────► │
   │                                     │  6. Verify key is
+  │                                     │     registered
+  │  ◄── 200 { registered: true } ─────│
+  │                                     │
+  │  7. cpm publish                     │
+  │  → SSH signed request               │
+  │  ─────────────────────────────────► │
+  │                                     │  8. Verify key is
   │                                     │     registered + approved
   │  ◄── 201 Published ────────────────│
 ```

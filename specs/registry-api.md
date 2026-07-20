@@ -52,7 +52,7 @@ Before a machine can register keys and publish, it must sign up with the registr
 ```
 Machine identity = hardware + software + owner
 
-cpm signup
+cpm auth signup
   → gathers machine profile (CPU, RAM, storage, GPU, TPM, OS, kernel, cpm version)
   → gathers owner identity (SSH public key)
   → signs profile with machine's SSH key
@@ -65,8 +65,14 @@ cpm auth register
   → Server verifies signup status = approved
   → Stores key at auth/keys/{fingerprint}.pub in S3
 
+cpm auth login
+  → stores key path in ~/.cpm/auth.json
+  → PUT /v1/auth/status { "fingerprint": "SHA256:..." }
+  → Server checks if key is registered
+  → Returns: { registered: true/false, registered_at: "..." }
+
 cpm publish
-  → SSH signed publish request (unchanged)
+  → SSH signed publish request (uses stored key from auth.json)
 ```
 
 See [ADR-009](../adr/ADR-009-machine-identity-profile.md) for the full architectural rationale.
@@ -80,6 +86,17 @@ cpm auth register --key ~/.ssh/id_ed25519.pub
   → Server verifies signup status = approved
   → Server stores key at auth/keys/{fingerprint}.pub in S3
   → Returns: { "fingerprint": "SHA256:abc123...", "registered_at": "..." }
+```
+
+### Status Check Flow
+
+```
+cpm auth login --key ~/.ssh/id_ed25519
+  → PUT /v1/auth/status
+  → Body: { "fingerprint": "SHA256:..." }
+  → Server looks up key by fingerprint
+  → Returns 200: { "fingerprint": "...", "registered": true, "registered_at": "..." }
+  → Returns 200: { "fingerprint": "...", "registered": false }
 ```
 
 ### Publish Flow

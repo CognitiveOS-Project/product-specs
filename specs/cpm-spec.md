@@ -397,6 +397,66 @@ Server stores only the public key. No secrets are transmitted.
 
 **Exit codes:** 0=ok, 1=network error, 2=key not found
 
+#### `cpm auth signup [--key <path>]`
+
+Submit machine identity profile to the registry (one-time per machine).
+
+```bash
+cpm auth signup --key ~/.ssh/id_ed25519
+```
+
+Gathers machine profile (CPU, cores, arch, RAM, GPU, TPM, machine ID, OS, kernel, distro, packages, services, network) and owner's SSH public key. Signs the profile with the SSH private key and sends to the server.
+
+Output:
+```
+Signup submitted
+  Machine ID: abc123...
+  Status:     approved
+  Next step:  cpm auth register --key ~/.ssh/id_ed25519.pub
+```
+
+**Exit codes:** 0=ok, 1=network error, 2=auth failed
+
+#### `cpm auth login [--key <path>]`
+
+Store SSH key locally and verify registration with the registry.
+
+```bash
+cpm auth login --key ~/.ssh/id_ed25519
+```
+
+Stores the key path in `~/.cpm/auth.json` and verifies the key is registered on the server via `PUT /v1/auth/status`.
+
+Output:
+```
+Logged in
+  Key:         /root/.ssh/id_ed25519
+  Fingerprint: SHA256:abc123...
+  Status:      registered
+  Registered:  2026-07-20T00:42:38Z
+```
+
+After login, `cpm publish` automatically uses the stored key (no `--key` flag needed).
+
+**Exit codes:** 0=ok, 1=network error, 2=key not found
+
+#### `cpm auth logout`
+
+Clear local authentication state.
+
+```bash
+cpm auth logout
+```
+
+Removes `~/.cpm/auth.json`. Does not affect the server — your key remains registered.
+
+Output:
+```
+Logged out
+```
+
+**Exit codes:** 0=ok
+
 #### `cpm register-dependencies <package> [--root <path>]`
 Register system-level dependencies for an installed patch in the installation queue.
 ```bash
