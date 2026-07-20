@@ -1,6 +1,6 @@
 # CognitiveOS Security Model
 
-Version: 1.1.0-draft
+Version: 1.2.0-draft
 
 ## Overview
 
@@ -150,7 +150,32 @@ The daemon (`cognitiveosd`) does NOT run in a chroot — it needs full filesyste
 
 ### Supply Chain Verification
 
-Every `.cgp` patch published to the registry is authenticated via SSH key signature and stored with a SHA-256 checksum in S3. See [ADR-007](../adr/ADR-007-registry-server-architecture.md) and `registry-api.md` for the full protocol.
+Every `.cgp` patch published to the registry is authenticated via SSH key signature and stored with a SHA-256 checksum in S3. See [ADR-007](../adr/ADR-007-registry-server-architecture.md), [ADR-009](../adr/ADR-009-machine-identity-profile.md), and `registry-api.md` for the full protocol.
+
+#### Machine Identity (Gated Publisher Model)
+
+Before a machine can register keys and publish, it must sign up with the registry. The server evaluates the machine's identity — its hardware, software, and owner — against configurable rules.
+
+A machine has three inherent properties:
+
+| Property | What it is | Why it matters |
+|----------|-----------|----------------|
+| **Hardware** | CPU, RAM, storage, GPU, TPM | Proves physical capability and origin |
+| **Software** | OS, kernel, packages, cpm version | Proves operational environment |
+| **Owner** | The person who controls the machine | Accountability — who is responsible |
+
+```
+Signup flow:
+  1. Machine gathers hardware + software profile
+  2. Machine gathers owner identity (SSH public key)
+  3. Machine signs profile with its SSH key
+  4. Server evaluates profile against rules
+  5. If rules pass → approved (machine can register keys)
+  6. If no rules match → pending (queued for review)
+  7. If rules fail → rejected (cannot register)
+```
+
+See [ADR-009](../adr/ADR-009-machine-identity-profile.md) for the full specification.
 
 #### Publisher Authentication
 
@@ -355,7 +380,8 @@ See [ADR-003](../adr/ADR-003-backdoor-shell.md) for the full specification.
 | Wide Model | Untrusted | Arbitrary model, download from registry |
 | MCP servers | Untrusted | Arbitrary code from .cgp patches |
 | .cgp patches | Untrusted | From unknown authors, verified by SSH signature + checksum |
-| Registry | Semi-trusted | Source of truth for checksums, public keys, unlock codes; stores only public keys, never secrets |
+| Machine identity profiles | Semi-trusted | Hardware + software + owner profile; evaluated by rules before publish access granted |
+| Registry | Semi-trusted | Source of truth for checksums, public keys, unlock codes, machine profiles; stores only public keys and profiles, never secrets |
 | Registry publisher keys | Semi-trusted | Publisher identity via SSH fingerprint; compromise detected by notary re-verification |
 | S3 store | Semi-trusted | Stores manifests + public keys; integrity ensured by S3 provider (R2, etc.) |
 | Human (backdoor shell) | Trusted for root shell | Physical access implies authority — keyboard combo required |

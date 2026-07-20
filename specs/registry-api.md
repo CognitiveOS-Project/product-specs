@@ -1,6 +1,6 @@
 # Registry Server API Specification
 
-Version: 2.0.0-draft
+Version: 2.1.0-draft
 
 ## Overview
 
@@ -25,9 +25,12 @@ All endpoints are prefixed with `/v1/`.
 | Endpoint group | Auth required | Method |
 |----------------|---------------|--------|
 | Read (search, metadata) | No | Public |
-| Publish (POST, PUT) | Yes | SSH key signature (see below) |
+| Signup | No (creates identity) | SSH key signature (machine + owner profile) |
+| Register key | Yes (approved signup required) | SSH key signature |
+| Publish (POST, PUT) | Yes (registered key) | SSH key signature |
 | Unlock code verification | No | Public (code is the auth) |
 | Status change | Yes | SSH key signature (admin scope) |
+| Admin approvals | Yes | Admin token |
 
 ### SSH Key Authentication
 
@@ -42,12 +45,39 @@ X-SSH-Signature: <base64-encoded SSHSIG signature>
 
 **Signature protocol:** The client signs the SHA-256 hash of the request body using the SSHSIG protocol (`golang.org/x/crypto/ssh` + `hiddeco/sshsig`). The server verifies the signature against the registered public key.
 
+### Signup Flow (Gated Publisher Model)
+
+Before a machine can register keys and publish, it must sign up with the registry. The server evaluates the machine's hardware/software profile and the owner's identity against configurable rules.
+
+```
+Machine identity = hardware + software + owner
+
+cpm signup
+  → gathers machine profile (CPU, RAM, storage, GPU, TPM, OS, kernel, cpm version)
+  → gathers owner identity (SSH public key)
+  → signs profile with machine's SSH key
+  → POST /v1/auth/signup
+  → Server evaluates profile against rules
+  → Returns: { status: "approved"|"pending"|"rejected", ... }
+
+cpm auth register
+  → POST /v1/auth/register
+  → Server verifies signup status = approved
+  → Stores key at auth/keys/{fingerprint}.pub in S3
+
+cpm publish
+  → SSH signed publish request (unchanged)
+```
+
+See [ADR-009](../adr/ADR-009-machine-identity-profile.md) for the full architectural rationale.
+
 ### Registration Flow
 
 ```
 cpm auth register --key ~/.ssh/id_ed25519.pub
   → POST /v1/auth/register
   → Body: { "public_key": "<contents of .pub file>" }
+  → Server verifies signup status = approved
   → Server stores key at auth/keys/{fingerprint}.pub in S3
   → Returns: { "fingerprint": "SHA256:abc123...", "registered_at": "..." }
 ```
@@ -327,6 +357,117 @@ If `verified` is `false`, the response includes both hashes for comparison:
 4. If ETag matches stored SHA-256 → verified
 5. If no ETag: GET full file, compute SHA-256, compare
 6. Return verification result
+
+### `POST /v1/auth/signup`
+
+Register a machine identity profile. The server evaluates the machine's hardware/software profile and the owner's identity against configurable rules. Required before `auth/register`.
+
+See [ADR-009](../adr/ADR-009-machine-identity-profile.md) for the full specification.
+
+#### Headers
+
+```
+X-SSH-Fingerprint: SHA256:<machine-key-fingerprint>
+X-SSH-Signature: <base64-encoded SSHSIG signature of profile>
+Content-Type: application/json
+```
+
+#### Request Body
+
+```json
+{
+  "machine": {
+    "hardware": {
+      "cpu": "AMD Ryzen 9 5900X 12-Core",
+      "cores": 24,
+      "arch": "amd64",
+      "ram_mb": 65536,
+      "storage_mb": 1000000,
+      "gpu": "NVIDIA RTX 3090",
+      "tpm": true,
+      "machine_id": "a1b2c3d4-..."
+    },
+    "software": {
+      "os": "linux",
+      "kernel": "6.12.0",
+      "distro": "alpine",
+      "cpm_version": "0.1.0",
+      "packages": ["docker", "go"],
+      "services": ["sshd"]
+    },
+    "network": {
+      "ip": "192.168.1.100"
+    }
+  },
+  "owner": {
+    "public_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA...",
+    "comment": "jean@cognitive-os.org"
+  }
+}
+```
+
+#### Response (approved)
+
+```json
+// 200 OK
+{
+  "status": "approved",
+  "machine_id": "a1b2c3d4-...",
+  "owner_fingerprint": "SHA256:abc123...",
+  "approved_at": "2026-07-20T00:42:38Z",
+  "reason": "Hardware + owner meet all rules"
+}
+```
+
+#### Response (pending)
+
+```json
+// 202 Accepted
+{
+  "status": "pending",
+  "machine_id": "a1b2c3d4-...",
+  "owner_fingerprint": "SHA256:abc123...",
+  "queued_at": "2026-07-20T00:42:38Z",
+  "reason": "No matching rules — queued for review"
+}
+```
+
+#### Response (rejected)
+
+```json
+// 403 Forbidden
+{
+  "status": "rejected",
+  "machine_id": "a1b2c3d4-...",
+  "owner_fingerprint": "SHA256:abc123...",
+  "rejected_at": "2026-07-20T00:42:38Z",
+  "reason": "Only ed25519 keys accepted"
+}
+```
+
+### `GET /v1/auth/status`
+
+Check signup approval status for a machine.
+
+#### Headers
+
+```
+X-SSH-Fingerprint: SHA256:<machine-key-fingerprint>
+X-SSH-Signature: <base64-encoded SSHSIG signature>
+```
+
+#### Response
+
+```json
+// 200 OK
+{
+  "machine_id": "a1b2c3d4-...",
+  "status": "approved",
+  "owner_fingerprint": "SHA256:abc123...",
+  "registered_keys": 2,
+  "approved_at": "2026-07-20T00:42:38Z"
+}
+```
 
 ### `POST /v1/auth/register`
 
