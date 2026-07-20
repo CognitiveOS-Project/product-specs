@@ -314,39 +314,28 @@ The publish request sends the manifest fields as JSON, plus the `.cgp` binary as
 | SSH key store (memory) | Done | `internal/auth/sshauth.go` |
 | SSH key store (S3) | Done | `internal/auth/sshauth.go` |
 | `/v1/auth/register` endpoint | Done | `internal/server/handlers.go` |
-| SSH auth middleware | **Missing** | `internal/auth/sshmiddleware.go` |
-| Wire middleware to publish routes | **Missing** | `internal/server/server.go` |
-| GitHub release creation | **Missing** | New handler needed |
-| Temp file management | **Missing** | New handler needed |
+| SSH auth middleware | Done | `internal/auth/sshmiddleware.go` |
+| Wire middleware to publish routes | Done | `internal/server/server.go` |
+| GitHub release creation | Done | `internal/github/github.go` |
+| Temp file management | Done | `internal/server/handlers.go` |
+| SHA256 from .cgp (official path) | Done | `internal/server/handlers.go` |
+| Multipart upload parsing | Done | `internal/auth/sshmiddleware.go` |
 
 ### CPM Client
 
 | Component | Status | File |
 |---|---|---|
 | Read manifest from .cgp | Done | `cmd/publish.go` |
-| SHA-256 of manifest JSON bytes | **Wrong** — currently hashes entire .cgp | `cmd/publish.go` |
-| SSH key signing | **Missing** | `internal/auth/signing.go` |
-| `cpm auth register` command | **Missing** | `cmd/auth.go` |
-| Send SSH headers | **Missing** — currently sends Bearer token | `internal/registry/registry.go` |
-| Add `golang.org/x/crypto` dependency | **Missing** | `go.mod` |
-
-### What Needs to Change
-
-**Registry Server:**
-1. Create SSH auth middleware (`internal/auth/sshmiddleware.go`)
-2. Wire middleware into publish routes (`server.go`)
-3. Initialize SSHKeys in main.go
-4. Add GitHub release creation handler
-5. Add multipart file upload handling
-6. Add temp file cleanup
-
-**CPM Client:**
-1. Create SSH signing utility (`internal/auth/signing.go`)
-2. Rewrite `cmd/publish.go` to use SSH signing
-3. Create `cmd/auth.go` for key registration
-4. Update `internal/registry/registry.go` to send SSH headers
-5. Add `golang.org/x/crypto` dependency
-6. Fix manifest hashing (JSON bytes, not entire .cgp)
+| SHA-256 of manifest JSON bytes | Done | `cmd/publish.go` |
+| SSH key signing | Done | `internal/auth/signing.go` |
+| `cpm auth register` command | Done | `cmd/auth.go` |
+| Send SSH headers | Done | `internal/registry/registry.go` |
+| `golang.org/x/crypto` dependency | Done | `go.mod` |
+| Manifest in PublishRequest | Done | `internal/registry/registry.go` |
+| SHA256 in notary proxy request | Done | `cmd/publish.go` |
+| `cpm info --json` | Done | `cmd/info.go` |
+| CI/CD workflows in `cpm init` | Done | `cmd/init_cmd.go` |
+| Name@version resolver split | Done | `internal/resolver/registry.go` |
 
 ## Testing
 
@@ -367,25 +356,31 @@ hello-cognitive/
 # 1. Register SSH key
 cpm auth register --key ~/.ssh/id_ed25519.pub
 
-# 2. Pack the test package
-cd /tmp/hello-cognitive
+# 2. Create and pack the test package
+cpm init hello-cognitive
+cd hello-cognitive
 cpm pack
 
-# 3. Publish
-cpm publish ./hello-cognitive-0.1.0-universal.cgp
+# 3a. Official publish (registry hosts the file)
+cpm publish hello-cognitive-0.1.0.cgp --key ~/.ssh/id_ed25519
+
+# 3b. Notary proxy publish (you host the file)
+cpm publish hello-cognitive-0.1.0.cgp \
+  --key ~/.ssh/id_ed25519 \
+  --download-url https://github.com/CognitiveOS-CGP-Packages/hello-cognitive/releases/download/v0.1.0/hello-cognitive-0.1.0.cgp
 
 # 4. Search
 cpm search hello-cognitive
 
-# 5. Install
-CPM_PATCHES_DIR=/tmp/cpm-test/patches cpm install hello-cognitive
+# 5. Install from registry
+CPM_PATCHES_DIR=/tmp/cpm-test/patches cpm install hello-cognitive@0.1.0
 
 # 6. Verify
 cpm list
 cpm info hello-cognitive
 
 # 7. Notary check
-curl "https://registry-us-all-distros-official.cognitive-os.org/v1/notary/check?source=hello-cognitive&path=cognitive.json&version=0.1.0"
+curl "https://registry-us-all-distros-official.cognitive-os.org/v1/notary/check?source=cpm&path=hello-cognitive&version=0.1.0"
 ```
 
 ## Future Considerations

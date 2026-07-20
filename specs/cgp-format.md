@@ -74,15 +74,25 @@ cpm update <name>
 Patches can be published to a [registry-server](https://github.com/CognitiveOS-Project/registry-server):
 
 ```bash
-cpm publish ./my-skill.cgp
-cpm install my-skill  # resolves from registry
+# Register SSH key (one-time)
+cpm auth register --key ~/.ssh/id_ed25519.pub
+
+# Pack and publish
+cpm pack
+cpm publish my-skill-0.1.0.cgp --key ~/.ssh/id_ed25519
 ```
 
-Search syntax:
+Search and install:
 
 ```bash
 cpm search email
-cpm search "image processing" --license MIT
+cpm install my-skill@0.1.0
+```
+
+Notary verification:
+
+```bash
+curl "https://registry-us-all-distros-official.cognitive-os.org/v1/notary/check?source=cpm&path=my-skill&version=0.1.0"
 ```
 
 ## Distribution

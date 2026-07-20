@@ -2,7 +2,14 @@
 
 Real-world examples showcasing the CognitiveOS package ecosystem.
 
-## Index
+## Getting Started
+
+| Tutorial | What it demonstrates |
+|----------|---------------------|
+| [CGP Lifecycle](cgp-lifecycle.md) | Complete package lifecycle: create → package → publish → install → verify |
+| [CPM Workflow](cpm-workflow.md) | Step-by-step guide to init, pack, publish with correct cpm usage |
+
+## Package Examples
 
 | Tutorial | Template | What it demonstrates |
 |----------|----------|---------------------|
@@ -33,6 +40,9 @@ Every tutorial follows the same flow:
 2. **Declare** MCP servers and capabilities in `cognitive.json`
 3. **Write** the system prompt that instructs the Wide Model
 4. **Build** any required MCP server binaries
-5. **Install** with `cpm install` — the daemon handles spawning, registration, and lifecycle
+5. **Pack** with `cpm pack` and **verify** with `cpm verify`
+6. **Register** SSH key with `cpm auth register`
+7. **Publish** with `cpm publish` — the registry handles hosting and distribution
+8. **Install** with `cpm install` — the daemon handles spawning, registration, and lifecycle
 
 The Wide Model (the system's LLM) autonomously decides when to call each tool based on the user's natural-language request. No explicit routing, no API glue code — just declare what your skill can do, and the AI figures out the rest.

@@ -253,7 +253,7 @@ photo-viewer  0.5.0    /cognitiveos/patches/photo-viewer/
 
 **Exit codes:** 0=ok
 
-#### `cpm info <name>`
+#### `cpm info <name> [--json] [--manifest <path>]`
 
 Show detailed manifest information.
 
@@ -275,6 +275,26 @@ MCP servers:    imap-smtp-bridge (stdio)
 Installed:      /cognitiveos/patches/email-manager/
 Size:           45 MB
 ```
+
+**JSON output** (for CI/CD pipelines):
+
+```bash
+cpm info --json --manifest cognitive.json
+```
+
+Output:
+```json
+{
+  "name": "email-manager",
+  "version": "1.2.0",
+  "description": "Background email triaging",
+  "author": "CognitiveOS",
+  "license": "MIT",
+  "filename": "email-manager-1.2.0-linux-amd64.cgp"
+}
+```
+
+The `filename` field follows the naming convention: `<name>-<version>-<os>-<arch>.cgp` (or `<name>-<version>.cgp` for architecture-agnostic packages).
 
 **Exit codes:** 0=ok, 1=not found
 
@@ -321,17 +341,61 @@ cpm pack --bin ./build/bin/cli --name cognitiveos-cli --version 0.1.0
 
 **Exit codes:** 0=ok, 1=binary not found, 2=manifest missing or invalid
 
-#### `cpm publish <path> [--registry <url>]`
+#### `cpm publish <path> [--key <path>] [--download-url <url>] [--tag <tag>] [--scope <scope>] [--visibility <visibility>]`
 
-Publish a `.cgp` archive to the registry.
+Publish a `.cgp` archive to the registry. Authenticates using SSH key signing. Falls back to `CPM_REGISTRY_TOKEN` (deprecated) if no SSH key is found.
+
+**Official publish** (no `--download-url`): uploads the `.cgp` to the registry, which creates a GitHub Release and stores the package. Best for packages under 32 MB.
 
 ```bash
-cpm publish ./my-skill-1.0.0.cgp
+cpm publish ./my-skill-1.0.0.cgp --key ~/.ssh/id_ed25519
 ```
 
-Requires authentication token (from `~/.cognitiveos/cpm-credentials.json` or `CPM_TOKEN` env var).
+**Notary proxy publish** (`--download-url` required): registers metadata only. The `.cgp` must be hosted externally (GitHub Releases, personal server, etc.). Consumers install via UPR:
+
+```bash
+cpm publish ./my-skill-1.0.0.cgp \
+  --key ~/.ssh/id_ed25519 \
+  --download-url https://github.com/owner/repo/releases/download/v1.0.0/my-skill-1.0.0.cgp
+```
+
+For packages larger than 32 MB (e.g. with model weights), host the `.cgp` on GitHub Releases and publish metadata via `--download-url`, or let consumers install directly:
+```bash
+cpm install ghr:owner/repo@tag
+```
+
+**Flags:**
+
+| Flag | Description |
+|------|-------------|
+| `--key <path>` | SSH private key path (default: `~/.ssh/id_ed25519`) |
+| `--download-url <url>` | Canonical download URL for notary proxy mode |
+| `--tag <tag>` | Tags for the package (repeatable) |
+| `--scope <scope>` | Package scope (e.g. username, org) |
+| `--visibility <visibility>` | Package visibility: `public` or `private` (default: `public`) |
 
 **Exit codes:** 0=ok, 1=validation failed, 2=auth failed, 3=network error, 4=version already exists
+
+#### `cpm auth register [--key <path>]`
+
+Register SSH public key with the registry (one-time per key).
+
+```bash
+cpm auth register --key ~/.ssh/id_ed25519.pub
+```
+
+Output:
+```
+Registered SSH key
+  Fingerprint: SHA256:abc123...
+  Key type:    ssh-ed25519
+  Comment:     your-key
+  Registered:  2026-07-20T00:42:38Z
+```
+
+Server stores only the public key. No secrets are transmitted.
+
+**Exit codes:** 0=ok, 1=network error, 2=key not found
 
 #### `cpm register-dependencies <package> [--root <path>]`
 Register system-level dependencies for an installed patch in the installation queue.

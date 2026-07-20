@@ -2,20 +2,36 @@
 
 This guide demonstrates the end-to-end lifecycle of creating, packaging, and distributing a CognitiveOS patch (.cgp).
 
+## Prerequisites
+
+- `cpm` installed (`go install github.com/CognitiveOS-Project/cpm/cmd/cpm@latest`)
+- SSH key pair for registry authentication (`ssh-keygen -t ed25519`)
+
 ## 1. Initialize a New Skill
 
-Use `cpm init` to create a structured skeleton directory based on your skill type.
+Use `cpm init` to create a structured skeleton directory.
 
 ```bash
 # Create a basic skill with prompts and tools directories
-cpm init my-awesome-skill --template default
+cpm init my-awesome-skill
 
-# Or create a minimal prompt-only skill
+# Create a minimal prompt-only skill
 cpm init my-prompt-skill --template prompt-only
 
-# Or create an MCP server bridge
+# Create an MCP server bridge
 cpm init my-mcp-bridge --template mcp-bridge
+
+# Create a GGUF model package
+cpm init my-model --template gguf-model
+
+# Create a firmware package
+cpm init my-firmware --template firmware
+
+# Create a full reference package
+cpm init my-everything --template full
 ```
+
+Each template creates a `.github/` directory with Alpine CI/CD workflows (Dockerfile.ci, ci.yml, publish.yml).
 
 Navigate into your project:
 ```bash
@@ -51,47 +67,147 @@ Depending on your template, add your assets:
 
 - **Prompts**: Edit `prompts/system.md` to define the AI's persona and instructions.
 - **Tools**: Place your MCP server binaries or scripts in the `tools/` directory.
-- **Weights**: If distributing a model, place `.gguf` files in `weights/` and update the `brain` section of the manifest.
+- **Weights**: If distributing a model, place `.gguf` files in `weights/` and update the manifest.
 
-## 4. Package the Skill
+## 4. Verify the Manifest
 
-Use `cpm pack` to bundle your manifest and assets into a signed, verified `.cgp` archive.
+Use `cpm verify` to validate your package before publishing:
 
-### Scenario A: Packaging from a directory (automatic manifest detection)
-If you have a `cognitive.json` in your current directory:
 ```bash
-cpm pack --bin ./build/bin/my-tool
-```
-*This will find `cognitive.json` automatically, include the binary in `tools/`, and create a `.cgp` file.*
-
-### Scenario B: Packaging a minimal manifest via CLI
-If you don't have a manifest file, you can define one on the fly:
-```bash
-cpm pack --name "my-skill" --version "0.1.0" --os linux --arch amd64
+cpm pack
+cpm verify my-awesome-skill-0.1.0.cgp
 ```
 
-### Scenario C: Using a specific manifest file
-```bash
-cpm pack --manifest path/to/custom-cognitive.json
+Output:
+```
+✓ my-awesome-skill-0.1.0.cgp is valid (my-awesome-skill v0.1.0)
 ```
 
-**Output**: You will get a file like `my-awesome-skill-0.1.0-universal.cgp`.
+## 5. Inspect Package Info
 
-## 5. Publish to Registry
-
-Once packaged, upload your `.cgp` to the official CognitiveOS registry for distribution.
+Use `cpm info` to view manifest details:
 
 ```bash
-# Replace with your actual package filename
-cpm publish my-awesome-skill-0.1.0-universal.cgp --download-url "https://github.com/your-org/my-skill/releases/download/v0.1.0/my-awesome-skill-0.1.0-universal.cgp"
+# View installed package info
+cpm info my-awesome-skill
+
+# View local manifest as JSON (for CI/CD pipelines)
+cpm info --json --manifest cognitive.json
+```
+
+JSON output:
+```json
+{
+  "name": "my-awesome-skill",
+  "version": "0.1.0",
+  "description": "A skill that provides advanced analysis of system logs",
+  "author": "Jane Doe",
+  "license": "MIT",
+  "filename": "my-awesome-skill-0.1.0.cgp"
+}
+```
+
+## 6. Register SSH Key
+
+Register your SSH public key with the registry (one-time per key):
+
+```bash
+cpm auth register --key ~/.ssh/id_ed25519.pub
+```
+
+Output:
+```
+Registered SSH key
+  Fingerprint: SHA256:abc123...
+  Key type:    ssh-ed25519
+  Comment:     your-key
+  Registered:  2026-07-20T00:42:38Z
+```
+
+## 7. Publish to Registry
+
+Two publish modes are available:
+
+### Official Publish (registry hosts the file)
+
+For packages under 32 MB, the registry server handles hosting:
+
+```bash
+cpm publish my-awesome-skill-0.1.0.cgp --key ~/.ssh/id_ed25519
+```
+
+The registry:
+1. Verifies your SSH signature
+2. Creates a GitHub Release on the official org
+3. Uploads the .cgp as a release asset
+4. Stores manifest + checksum in S3-compatible storage
+
+### Notary Proxy Publish (you host the file)
+
+For larger packages or self-hosted distribution:
+
+```bash
+cpm publish my-awesome-skill-0.1.0.cgp \
+  --key ~/.ssh/id_ed25519 \
+  --download-url https://github.com/your-org/releases/download/v1.0.0/my-awesome-skill-0.1.0.cgp
+```
+
+The registry stores metadata and checksum only. Consumers install via:
+```bash
+cpm install ghr:your-org/my-awesome-skill@v1.0.0
+```
+
+## 8. Search and Install
+
+Once published, others can find and install your package:
+
+```bash
+# Search the registry
+cpm search my-awesome-skill
+
+# Install from registry
+cpm install my-awesome-skill@0.1.0
+
+# Install from GitHub Release (UPR)
+cpm install ghr:your-org/my-awesome-skill@v1.0.0
+
+# Install from local file
+cpm install ./my-awesome-skill-0.1.0.cgp
+
+# List installed packages
+cpm list
+```
+
+## 9. Verify Checksums
+
+The notary system stores checksums for all published packages:
+
+```bash
+# Verify via registry API
+curl "https://registry-us-all-distros-official.cognitive-os.org/v1/notary/check?source=cpm&path=my-awesome-skill&version=0.1.0"
+```
+
+Response:
+```json
+{
+  "name": "my-awesome-skill",
+  "version": "0.1.0",
+  "stored_hash": "00713d22377d8237afdfce310a9cf438151944189d6fccfe6867bb64526259aa",
+  "verified": true
+}
 ```
 
 ## Summary of Workflow
 
 | Step | Command | Purpose |
 |------|---------|---------|
-| **Init** | `cpm init <dir>` | Create skeleton and manifest |
-| **Develop**| `vim cognitive.json` | Define identity & requirements |
-| **Build** | `go build ...` | Create tools/binaries |
+| **Init** | `cpm init <dir> --template <type>` | Create skeleton and manifest |
+| **Develop**| Edit `cognitive.json`, `prompts/`, `tools/` | Define identity & requirements |
+| **Build** | `go build ...` (if MCP server) | Create tools/binaries |
 | **Pack** | `cpm pack` | Bundle and verify as `.cgp` |
-| **Publish**| `cpm publish` | Distribute to registry |
+| **Verify** | `cpm verify *.cgp` | Validate archive integrity |
+| **Auth** | `cpm auth register --key *.pub` | Register SSH key (one-time) |
+| **Publish** | `cpm publish *.cgp --key` | Distribute to registry |
+| **Search** | `cpm search <query>` | Find packages |
+| **Install** | `cpm install <name>` | Install from registry |
+| **Info** | `cpm info --json` | Inspect manifest (CI/CD) |
