@@ -177,6 +177,28 @@ Signup flow:
 
 See [ADR-009](../adr/ADR-009-machine-identity-profile.md) for the full specification.
 
+#### Owner Identity (Web UI)
+
+Owners authenticate through GitHub OAuth on their personal device. The web UI lets the owner prove real identity and link it to the machine's SSH key.
+
+```
+Owner flow:
+  1. Owner visits /ui/login → redirected to GitHub OAuth
+  2. Owner authenticates with GitHub → proves real identity
+  3. Callback receives GitHub user info → owner stored in registry
+  4. Owner links machine's SSH public key → sets display name
+  5. Key becomes active → machine can login and publish
+  6. Owner can revoke key → publish blocked, downloads work
+  7. Owner can reactivate key → publish works again
+```
+
+**Security properties:**
+- Session is a signed cookie (HMAC-SHA256, HttpOnly, Secure, SameSite=Lax)
+- Owner identity is GitHub-verified (OAuth2 + GitHub user API)
+- Key revocation is immediate (checked on every publish request)
+- Per-key display names enable precise machine identification
+- One owner can manage many machines with independent key status
+
 #### Publisher Authentication
 
 ```

@@ -99,6 +99,54 @@ cpm auth login --key ~/.ssh/id_ed25519
   → Returns 200: { "fingerprint": "...", "registered": false }
 ```
 
+### Owner Identity Flow (Web UI)
+
+Owners manage their machines through a web UI. The flow:
+
+1. **Owner visits `/ui/login`** → redirected to GitHub OAuth
+2. **Owner authenticates with GitHub** → proves real identity
+3. **Callback receives GitHub user info** → owner stored in registry
+4. **Owner links machine's SSH public key** → sets display name, key becomes `active`
+5. **Machine can now login and publish** → server checks key status = `active`
+6. **Owner can revoke key** → publish blocked, downloads still work
+7. **Owner can reactivate key** → publish works again
+
+**Web UI routes:**
+
+| Route | Method | Auth | Description |
+|-------|--------|------|-------------|
+| `/ui/login` | GET | No | Redirect to GitHub OAuth |
+| `/ui/callback` | GET | No | OAuth callback, create session |
+| `/ui/logout` | GET | Session | Clear session |
+| `/ui/dashboard` | GET | Session | Show machine list |
+| `/ui/keys/add` | POST | Session | Link a new SSH key |
+| `/ui/keys/{fp}/revoke` | GET | Session | Revoke a key |
+| `/ui/keys/{fp}/activate` | GET | Session | Activate a revoked key |
+| `/ui/keys/{fp}/remove` | GET | Session | Remove a key |
+
+**Data model:**
+
+```go
+type Owner struct {
+    GitHubID   int64      `json:"github_id"`
+    GitHubUser string     `json:"github_user"`
+    AvatarURL  string     `json:"avatar_url"`
+    Keys       []OwnerKey `json:"keys"`
+}
+
+type OwnerKey struct {
+    Fingerprint string    `json:"fingerprint"`
+    PublicKey   string    `json:"public_key"`
+    DisplayName string    `json:"display_name"` // owner-set, machine-suggested
+    AddedAt     time.Time `json:"added_at"`
+    Status      string    `json:"status"` // active, revoked
+}
+```
+
+**S3 layout:** `auth/owners/{github_id}/owner.json`
+
+**New env vars:** `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `SESSION_SECRET`, `GITHUB_REDIRECT_URL`
+
 ### Publish Flow
 
 ```
