@@ -145,7 +145,7 @@ type OwnerKey struct {
 
 **S3 layout:** `auth/owners/{github_id}/owner.json`
 
-**New env vars:** `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `SESSION_SECRET`, `GITHUB_REDIRECT_URL`
+**New env vars:** `CRS_GITHUB_CLIENT_ID`, `CRS_GITHUB_CLIENT_SECRET`, `CRS_SESSION_SECRET`, `CRS_GITHUB_REDIRECT_URL`
 
 ### Publish Flow
 
