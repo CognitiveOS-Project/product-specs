@@ -245,145 +245,23 @@ SIGTERM → cognitiveos-cli: TUI cleanup, restore terminal
 
 ## Docker Boot Flow
 
-### Container Startup
-
-```
-docker run cognitiveos:<variant>
-  → Docker creates container from image layer
-  → tini starts as PID 1 (from ENTRYPOINT ["/sbin/tini", "--"])
-  → tini executes: /usr/local/bin/entrypoint.sh (from CMD)
-```
-
-### Entrypoint Script Sequence
-
-```
-entrypoint.sh:
-  │
-  │  Step 1: Process boot-stage system dependencies
-  │  /usr/local/bin/cpm install-dependencies --stage boot
-  │  → Installs kernel modules, firmware, etc.
-  │
-  │  Step 2: Create runtime directories
-  │  mkdir -p /cognitiveos/run /cognitiveos/logs
-  │
-  │  Step 3: Start cograw in background
-  │  /usr/local/bin/cograw --model /cognitiveos/models/raw/raw-model.gguf &
-  │  COGRAW_PID=$!
-  │  → Forks cograw into background
-  │  → cograw loads GGUF model into llama.cpp
-  │  → cograw opens /cognitiveos/run/raw.sock
-  │  → cograw writes /run/cograw.pid
-  │
-  │  Step 4: Wait for raw.sock
-  │  for i in $(seq 1 30); do
-  │      [ -S /cognitiveos/run/raw.sock ] && break
-  │      sleep 0.2
-  │  done
-  │  → raw.sock appears after ~1-2s (model load time)
-  │  → 30s timeout prevents infinite wait
-  │
-  │  Step 5: Start coginfer in background
-  │  /usr/local/bin/coginfer --backend cgo --models /cognitiveos/models &
-  │  COGINFER_PID=$!
-  │  → Forks coginfer into background
-  │  → coginfer starts HTTP server on 127.0.0.1:11434
-  │  → No model loaded yet (on-demand)
-  │
-  │  Step 6: Wait for HTTP :11434
-  │  for i in $(seq 1 30); do
-  │      wget -q --spider http://127.0.0.1:11434/health 2>/dev/null && break
-  │      sleep 0.2
-  │  done
-  │  → HTTP available after ~0.5s
-  │
-  │  Step 7: Start cognitiveosd in background
-  │  /usr/local/bin/cognitiveosd &
-  │  DAEMON_PID=$!
-  │  → cognitiveosd creates /cognitiveos/run/ directory
-  │  → cognitiveosd opens /cognitiveos/run/daemon.sock
-  │  → cognitiveosd connects to raw.sock (succeeds — cograw running)
-  │  → cognitiveosd connects to HTTP :11434 (succeeds — coginfer running)
-  │  → cognitiveosd spawns MCP bridges
-  │  → cognitiveosd starts audit loop
-  │
-  │  Step 8: Wait for daemon.sock
-  │  for i in $(seq 1 30); do
-  │      [ -S /cognitiveos/run/daemon.sock ] && break
-  │      sleep 0.2
-  │  done
-  │  → daemon.sock appears after ~1-2s
-  │
-  │  Step 9: Process runtime-stage system dependencies
-  │  /usr/local/bin/cpm install-dependencies --stage runtime
-  │  → Installs runtime fonts, libraries, etc.
-  │
-  │  Step 10: Exec CLI
-  │  exec /usr/local/bin/cognitiveos-cli
-  │  → Replaces entrypoint.sh shell process
-  │  → CLI becomes direct child of tini
-  │  → CLI connects to daemon.sock
-  │  → TUI renders: "CognitiveOS ready"
-```
-
-### Docker Process Tree
-
-```
-tini (PID 1)
-  └── cognitiveos-cli (PID 2, exec'd from entrypoint.sh)
-        └── connected to daemon.sock
-
-  Background processes (forked by entrypoint.sh, inherited by tini):
-    cograw      (listening on raw.sock)
-    coginfer    (listening on HTTP :11434)
-    cognitiveosd (listening on daemon.sock)
-```
-
-When entrypoint.sh calls `exec cognitiveos-cli`, the shell process is replaced by the CLI binary. The background processes (cograw, coginfer, cognitiveosd) become orphaned children of the original shell. Since the shell was replaced by exec, tini (PID 1) inherits these orphans as its direct children. Tini reaps any zombies and forwards signals to the process group.
-
-### Docker Shutdown Flow
-
-```
-docker stop cognitiveos
-  → Docker sends SIGTERM to PID 1 (tini)
-  → tini forwards SIGTERM to child process group
-  → cognitiveos-cli receives SIGTERM
-  → TUI handles cleanup, restores terminal, exits
-  → tini waits for child to exit
-  → tini propagates exit code to Docker
-  → Docker sends SIGKILL to remaining processes after timeout (default 10s)
-  → cograw, coginfer, cognitiveosd receive SIGKILL
-  → Container stops
-```
-
-With Phase 4 fixes (coginfer signal handling):
-
-```
-docker stop cognitiveos
-  → Docker sends SIGTERM to PID 1 (tini)
-  → tini forwards SIGTERM to process group
-  → cognitiveos-cli: TUI cleanup, exit
-  → coginfer: trap SIGTERM, call Unload(), close HTTP, exit
-  → cograw: already has signal handling, graceful shutdown
-  → cognitiveosd: already has SIGTERM handling, graceful shutdown
-  → tini propagates exit code
-  → Container stops cleanly (no SIGKILL needed)
-```
+Docker uses `coginit` as PID 1 (via `ENTRYPOINT ["/usr/local/bin/coginit"]`). See **coginit — Unified PID 1** below for the full Docker mode boot sequence.
 
 ---
 
 ## Socket Timeline
 
-Both ISO and Docker follow the same socket creation order:
+Both ISO and Docker follow the same socket creation order (orchestrated by coginit):
 
 ```
 Time    Event                           Socket/Port
 ─────────────────────────────────────────────────────
 T+0.0s  cograw starts
 T+1.5s  cograw opens raw.sock           /cognitiveos/run/raw.sock
-T+1.5s  entrypoint continues (ISO: OpenRC continues)
+T+1.5s  coginit continues
 T+1.5s  coginfer starts
 T+2.0s  coginfer opens HTTP             127.0.0.1:11434
-T+2.0s  entrypoint continues (ISO: cpm-boot-deps runs)
+T+2.0s  coginit continues
 T+2.0s  cognitiveosd starts
 T+2.5s  cognitiveosd connects to raw.sock   → OK
 T+2.5s  cognitiveosd connects to HTTP       → OK

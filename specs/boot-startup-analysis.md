@@ -237,12 +237,12 @@ The build and install pipeline is **correct**. All 5 binaries are compiled, coll
 
 | Step | What Should Happen | What Actually Happens | Status |
 |------|-------------------|----------------------|--------|
-| 1 | tini as PID 1 | cognitiveos-cli is PID 1 | ❌ Missing |
-| 2 | Start cograw in background | Never started | ❌ Missing |
-| 3 | Start coginfer in background | Never started | ❌ Missing |
-| 4 | Wait for raw.sock and HTTP:11434 | No waiting logic | ❌ Missing |
-| 5 | Start cognitiveosd in background | CLI tries to start daemon, which fatals | ❌ Broken |
-| 6 | CLI connects to daemon.sock | Container dies | ❌ Broken |
+| 1 | coginit as PID 1 | coginit starts as PID 1 via ENTRYPOINT | ✅ Done |
+| 2 | Start cograw in background | coginit starts cograw, waits for raw.sock | ✅ Done |
+| 3 | Start coginfer in background | coginit starts coginfer, waits for HTTP health | ✅ Done |
+| 4 | Wait for raw.sock and HTTP:11434 | coginit polls with timeouts | ✅ Done |
+| 5 | Start cognitiveosd in background | coginit starts cognitiveosd, waits for daemon.sock | ✅ Done |
+| 6 | CLI connects to daemon.sock | coginit execs CLI (replaces process) | ✅ Done |
 
 ### Process Lifecycle: Daemon `Run()` Method
 
@@ -457,111 +457,72 @@ Power On → BIOS/U-Boot → Kernel → inittab → OpenRC sysinit
                                      "CognitiveOS ready"
 ```
 
-### Docker (with tini)
+### Docker (coginit as PID 1)
 
 ```
-tini (PID 1) → entrypoint.sh
-                ├── mkdir -p /cognitiveos/run /cognitiveos/logs
-                ├── Start cograw (background, wait for raw.sock)
-                ├── Start coginfer (background, wait for HTTP :11434)
-                ├── Start cognitiveosd (background, wait for daemon.sock)
-                └── exec cognitiveos-cli
+coginit (PID 1)
+  ├── Install boot-stage dependencies (cpm)
+  ├── Create /cognitiveos/run, /cognitiveos/logs
+  ├── Start cograw (background, wait for raw.sock)
+  ├── Start coginfer (background, wait for HTTP :11434)
+  ├── Start cognitiveosd (background, wait for daemon.sock)
+  ├── Install runtime-stage dependencies (cpm)
+  └── exec cognitiveos-cli (replaces coginit)
 ```
 
-## Missing OpenRC Init Scripts
+## OpenRC Init Scripts
 
-Three init scripts must be created:
+OpenRC init scripts exist only for dependency installation (one-shot). Service startup is handled by coginit.
 
-### /etc/init.d/cograw (Planned)
+### /etc/init.d/cpm-boot-deps
 
 ```sh
 #!/sbin/openrc-run
-description="CognitiveOS Raw Model Guardrail Server"
+description="CognitiveOS Boot Dependencies"
 
 depend() {
     need localmount
     keyword -stop
 }
 
-command=/usr/local/bin/cograw
-command_args="--model /cognitiveos/models/raw/raw-model.gguf"
-command_background=true
-pidfile=/run/cograw.pid
-output_log=/cognitiveos/logs/cograw.log
-error_log=${output_log}
+command=/usr/local/bin/cpm
+command_args="install-dependencies --stage boot"
 ```
 
-### /etc/init.d/coginfer (Planned)
+### /etc/init.d/cpm-runtime-deps
 
 ```sh
 #!/sbin/openrc-run
-description="CognitiveOS Wide Model Inference Server"
+description="CognitiveOS Runtime Dependencies"
 
 depend() {
-    need localmount
     keyword -stop
 }
 
-command=/usr/local/bin/coginfer
-command_args="--backend cgo --models /cognitiveos/models"
-command_background=true
-pidfile=/run/coginfer.pid
-output_log=/cognitiveos/logs/coginfer.log
-error_log=${output_log}
+command=/usr/local/bin/cpm
+command_args="install-dependencies --stage runtime"
 ```
 
-### /etc/init.d/cognitiveosd (Planned)
+### Service Startup
 
-```sh
-#!/sbin/openrc-run
-description="CognitiveOS Daemon"
+cograw, coginfer, and cognitiveosd are started by coginit (PID 1), not OpenRC. See `specs/boot-flow.md#coginit` for the full boot sequence.
 
-depend() {
-    need cograw
-    after coginfer
-    before cpm-runtime-deps
-    keyword -stop
-}
+## Docker Init: coginit
 
-command=/usr/local/bin/cognitiveosd
-command_background=true
-pidfile=/run/cognitiveosd.pid
-output_log=/cognitiveos/logs/cognitiveosd.log
-error_log=${output_log}
-```
+Alpine Docker images use `coginit` as PID 1. It replaces `tini` + `entrypoint.sh` with a single compiled Go binary.
 
-### Planned Dependency Chain
+**Why coginit is used:**
 
-```
-cograw → coginfer → cpm-boot-deps → cognitiveosd → cpm-runtime-deps
-```
+1. **Zombie reaping**: coginit reaps orphaned child processes via SIGCHLD handler.
+2. **Signal forwarding**: Docker sends `SIGTERM` to PID 1. coginit forwards it to child process groups and propagates the exit code.
+3. **Service orchestration**: coginit starts cograw, coginfer, and cognitiveosd in the correct order with readiness checks.
+4. **Same binary as bare-metal**: No separate init script needed for Docker vs ISO.
 
-### Planned genapkovl Registration
-
-```sh
-rc_add cograw default
-rc_add coginfer default
-rc_add cpm-boot-deps default
-rc_add cognitiveosd default
-rc_add cpm-runtime-deps default
-```
-
-## Docker Init: tini
-
-Alpine Docker images have no init system by default. `tini` is available in the Alpine community repository (`apk add tini`, installs to `/sbin/tini`).
-
-**Why tini is required:**
-
-1. **Zombie reaping**: Without tini, orphaned child processes become zombies because the app (as PID 1) doesn't call `wait()`.
-2. **Signal forwarding**: Docker sends `SIGTERM` to PID 1. Tini forwards it to the child process group and propagates the exit code.
-3. **Portability**: Baked-in tini works in Docker, Kubernetes, podman, and any OCI runtime. The `docker run --init` flag only works with Docker engine.
-
-**Planned Dockerfile pattern:**
+**Dockerfile pattern:**
 
 ```dockerfile
-RUN apk add --no-cache tini
-ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["/usr/local/bin/cognitiveos-cli"]
+COPY --from=builder /src/build/out/ /usr/local/bin/
+ENTRYPOINT ["/usr/local/bin/coginit"]
 ```
 
 ## Config System Gap
