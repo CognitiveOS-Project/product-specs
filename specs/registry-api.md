@@ -135,11 +135,12 @@ type Owner struct {
 }
 
 type OwnerKey struct {
-    Fingerprint string    `json:"fingerprint"`
-    PublicKey   string    `json:"public_key"`
-    DisplayName string    `json:"display_name"` // owner-set, machine-suggested
-    AddedAt     time.Time `json:"added_at"`
-    Status      string    `json:"status"` // active, revoked
+    Fingerprint       string    `json:"fingerprint"`
+    PublicKey         string    `json:"public_key"`
+    DisplayName       string    `json:"display_name"`       // owner-set, machine-suggested
+    AddedAt           time.Time `json:"added_at"`
+    Status            string    `json:"status"`              // active, revoked
+    PublishPermission bool      `json:"publish_permission"`  // owner grants per-machine
 }
 ```
 
@@ -719,7 +720,7 @@ Trigger re-validation of an existing package against rules A1-A10. Requires admi
 
 ### `POST /v1/patches/{name}/{version}/unlock`
 
-Verify an unlock code for a paid package.
+Verify an unlock code for a paid package. The server compares the SHA-256 hash of the submitted code against stored hashes.
 
 #### Request
 
@@ -734,38 +735,50 @@ Verify an unlock code for a paid package.
 ```json
 // 200 OK
 {
-  "status": "valid",
-  "download_urls": {
-    "linux/amd64": "https://.../email-manager-1.2.0-linux-amd64.cgp",
-    "linux/arm64": "https://.../email-manager-1.2.0-linux-arm64.cgp"
-  },
-  "download_token": "cpg_dl_xxxxxxxxxxxxxxxxxxxx"
+  "status": "ok",
+  "name": "email-manager",
+  "version": "1.2.0",
+  "message": "model unlocked successfully"
 }
 ```
-
-The `download_token` is a single-use token valid for 24 hours.
 
 #### Error Responses
 
 ```json
-// 403 Forbidden
+// 403 Forbidden — wrong code
 {
-  "status": "invalid",
   "error": {
-    "code": "INVALID_CODE",
-    "message": "The unlock code provided is not valid or has expired."
+    "code": "INVALID_UNLOCK_CODE",
+    "message": "the unlock code is invalid"
+  }
+}
+
+// 400 Bad Request — no unlock required
+{
+  "error": {
+    "code": "NO_UNLOCK_REQUIRED",
+    "message": "this package does not require an unlock code"
   }
 }
 
 // 404 Not Found
 {
-  "status": "invalid",
   "error": {
     "code": "NOT_FOUND",
-    "message": "Package not found or does not require unlock."
+    "message": "package 'x' version 'y' not found"
   }
 }
 ```
+
+#### How unlock codes work
+
+1. Publisher includes `unlock_codes` in manifest (plaintext codes)
+2. Server hashes each code with SHA-256 and stores only the hashes
+3. Client sends `cpm install <name> --unlock <code>`
+4. Client calls this endpoint with the code
+5. Server hashes the code, compares against stored hashes
+6. If match → 200 OK, install proceeds
+7. If no match → 403, install fails
 
 ## Error Response Format
 

@@ -100,3 +100,11 @@ curl "https://registry-us-all-distros-official.cognitive-os.org/v1/notary/check?
 - Public patches: hosted on the official CognitiveOS registry
 - Private patches: self-hosted registries or direct file transfers
 - Paid patches: require unlock code (see [system-codes.md](system-codes.md))
+
+## Unlock Codes
+
+Unlock codes in manifest (`unlock_codes` field):
+- Publisher sets plaintext codes in `cognitive.json`
+- Registry hashes with SHA-256 at publish time, stores only hashes
+- Client calls `POST /v1/patches/{name}/{version}/unlock` with the code
+- Server verifies hash match, returns 200 OK if valid
