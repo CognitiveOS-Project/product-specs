@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.org/schemas/registry-publish-request.json",
+  "title": "Registry Publish Request",
+  "description": "Request body for POST /v1/patches and PUT /v1/patches/{name}/{version}. Content-Type: application/json for notary proxy, multipart/form-data for official publish.",
+  "type": "object",
+  "required": ["name", "version", "download_urls", "sha256", "manifest"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Package name matching cognitive.json"
+    },
+    "version": {
+      "type": "string",
+      "description": "SemVer version string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.]+)?$"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description"
+    },
+    "author": {
+      "type": "string",
+      "description": "Author or organization"
+    },
+    "license": {
+      "type": "string",
+      "description": "SPDX license identifier"
+    },
+    "source_repository": {
+      "type": "string",
+      "format": "uri",
+      "description": "Source repository URL"
+    },
+    "source_issues": {
+      "type": "string",
+      "format": "uri",
+      "description": "Issue tracker URL"
+    },
+    "download_urls": {
+      "type": "object",
+      "description": "Variant-keyed download URLs. Key format: '{os}/{arch}'. Empty string key '' is the universal fallback.",
+      "additionalProperties": {
+        "type": "string",
+        "format": "uri"
+      }
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 hex digest of the manifest JSON bytes (signed by publisher)"
+    },
+    "manifest": {
+      "type": "object",
+      "description": "Full parsed cognitive.json from the archive"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Tags for discovery"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Capability strings from runtime.capabilities"
+    },
+    "hardware_requirements": {
+      "type": "object",
+      "description": "Minimum hardware specifications",
+      "properties": {
+        "os": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["linux", "darwin", "windows"] }
+        },
+        "arch": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["amd64", "arm64", "riscv64"] }
+        },
+        "min_ram_mb": { "type": "integer" },
+        "min_storage_mb": { "type": "integer" },
+        "npu_required": { "type": "boolean" }
+      }
+    }
+  },
+  "additionalProperties": false
+}

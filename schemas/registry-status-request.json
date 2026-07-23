@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.org/schemas/registry-status-request.json",
+  "title": "Registry Status Request",
+  "description": "Request body for PATCH /v1/patches/{name}/{version}/status",
+  "type": "object",
+  "required": ["status"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["active", "deprecated", "buggy"],
+      "description": "New status for the package version"
+    }
+  }
+}

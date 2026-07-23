@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.org/schemas/registry-publish-response.json",
+  "title": "Registry Publish Response",
+  "description": "Response from POST /v1/patches (201 Created)",
+  "type": "object",
+  "required": ["name", "version", "sha256", "download_urls", "url"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Package name"
+    },
+    "version": {
+      "type": "string",
+      "description": "Published version"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 hex digest of the archive"
+    },
+    "download_urls": {
+      "type": "object",
+      "description": "Variant-keyed download URLs",
+      "additionalProperties": {
+        "type": "string",
+        "format": "uri"
+      }
+    },
+    "publisher_fingerprint": {
+      "type": "string",
+      "description": "SSH fingerprint of the publisher"
+    },
+    "url": {
+      "type": "string",
+      "description": "Relative URL to the published version metadata"
+    }
+  }
+}

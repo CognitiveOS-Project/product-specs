@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.org/schemas/registry-health-response.json",
+  "title": "Registry Health Response",
+  "description": "Response from GET /v1/health",
+  "type": "object",
+  "required": ["status", "uptime_seconds", "patches_count", "version"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["healthy"],
+      "description": "Health status"
+    },
+    "uptime_seconds": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Seconds since server start"
+    },
+    "patches_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total number of packages in the registry"
+    },
+    "version": {
+      "type": "string",
+      "description": "API version string"
+    }
+  }
+}

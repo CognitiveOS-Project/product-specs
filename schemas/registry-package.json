@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.org/schemas/registry-package.json",
+  "title": "Registry Package",
+  "description": "Full package metadata stored by the registry server. Returned by GET /v1/patches/{name}/{version} and stored in S3 at packages/{name}/{version}.json",
+  "type": "object",
+  "required": ["name", "version", "sha256", "download_urls", "status"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Package name matching cognitive.json"
+    },
+    "version": {
+      "type": "string",
+      "description": "SemVer version string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.]+)?$"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description"
+    },
+    "author": {
+      "type": "string",
+      "description": "Author or organization"
+    },
+    "license": {
+      "type": "string",
+      "description": "SPDX license identifier"
+    },
+    "source": {
+      "type": "object",
+      "description": "Source repository and issue tracker URLs",
+      "properties": {
+        "repository": {
+          "type": "string",
+          "format": "uri",
+          "description": "Git provider URL"
+        },
+        "issues": {
+          "type": "string",
+          "format": "uri",
+          "description": "Issue tracker URL"
+        }
+      }
+    },
+    "hardware_requirements": {
+      "type": "object",
+      "description": "Minimum hardware specifications",
+      "properties": {
+        "os": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["linux", "darwin", "windows"] },
+          "description": "Supported operating systems"
+        },
+        "arch": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["amd64", "arm64", "riscv64"] },
+          "description": "Supported CPU architectures"
+        },
+        "min_ram_mb": {
+          "type": "integer",
+          "description": "Minimum RAM in megabytes"
+        },
+        "min_storage_mb": {
+          "type": "integer",
+          "description": "Minimum free storage in megabytes"
+        },
+        "npu_required": {
+          "type": "boolean",
+          "description": "Whether a neural processing unit is required"
+        }
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "description": "Map of package names to SemVer version ranges",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 hex digest of the archive"
+    },
+    "download_urls": {
+      "type": "object",
+      "description": "Variant-keyed download URLs. Key format: '{os}/{arch}' (e.g. 'linux/amd64'). Empty string key '' is the universal fallback.",
+      "additionalProperties": {
+        "type": "string",
+        "format": "uri"
+      }
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 timestamp of when this version was published"
+    },
+    "downloads": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total download count"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "deprecated", "buggy"],
+      "description": "Version status"
+    },
+    "publisher_fingerprint": {
+      "type": "string",
+      "description": "SSH fingerprint of the publisher (SHA256:...)"
+    },
+    "manifest": {
+      "type": "object",
+      "description": "Full parsed cognitive.json from the archive"
+    }
+  },
+  "additionalProperties": false
+}

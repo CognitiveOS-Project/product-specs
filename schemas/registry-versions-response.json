@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.org/schemas/registry-versions-response.json",
+  "title": "Registry Versions Response",
+  "description": "Response from GET /v1/patches/{name}/versions",
+  "type": "object",
+  "required": ["name", "versions"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Package name"
+    },
+    "versions": {
+      "type": "array",
+      "items": { "$ref": "registry-package-version.json" },
+      "description": "All available versions, newest first"
+    }
+  }
+}

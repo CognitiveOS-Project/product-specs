@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.org/schemas/registry-auth-signup-response.json",
+  "title": "Registry Auth Signup Response",
+  "description": "Response from POST /v1/auth/signup. Status can be approved, pending, or rejected.",
+  "oneOf": [
+    {
+      "title": "Approved",
+      "description": "200 OK — machine meets all rules",
+      "type": "object",
+      "required": ["status", "machine_id", "owner_fingerprint", "approved_at"],
+      "properties": {
+        "status": { "enum": ["approved"] },
+        "machine_id": { "type": "string" },
+        "owner_fingerprint": { "type": "string", "description": "SSH fingerprint of the owner key" },
+        "approved_at": { "type": "string", "format": "date-time" },
+        "reason": { "type": "string" }
+      }
+    },
+    {
+      "title": "Pending",
+      "description": "202 Accepted — queued for review",
+      "type": "object",
+      "required": ["status", "machine_id", "owner_fingerprint", "queued_at"],
+      "properties": {
+        "status": { "enum": ["pending"] },
+        "machine_id": { "type": "string" },
+        "owner_fingerprint": { "type": "string" },
+        "queued_at": { "type": "string", "format": "date-time" },
+        "reason": { "type": "string" }
+      }
+    },
+    {
+      "title": "Rejected",
+      "description": "403 Forbidden — machine or owner failed rules",
+      "type": "object",
+      "required": ["status", "machine_id", "owner_fingerprint", "rejected_at"],
+      "properties": {
+        "status": { "enum": ["rejected"] },
+        "machine_id": { "type": "string" },
+        "owner_fingerprint": { "type": "string" },
+        "rejected_at": { "type": "string", "format": "date-time" },
+        "reason": { "type": "string" }
+      }
+    }
+  ]
+}

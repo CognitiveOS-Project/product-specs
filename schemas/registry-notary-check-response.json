@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.org/schemas/registry-notary-check-response.json",
+  "title": "Registry Notary Check Response",
+  "description": "Response from GET /v1/notary/check",
+  "type": "object",
+  "required": ["verified", "name", "version", "variant", "stored_hash", "checked_at"],
+  "properties": {
+    "verified": {
+      "type": "boolean",
+      "description": "Whether the remote asset matches the stored checksum"
+    },
+    "name": {
+      "type": "string",
+      "description": "Package name"
+    },
+    "version": {
+      "type": "string",
+      "description": "Version checked"
+    },
+    "variant": {
+      "type": "string",
+      "description": "Resolved variant (e.g. 'linux/arm64'), empty string for universal"
+    },
+    "stored_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 hash stored in the registry"
+    },
+    "remote_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 hash computed from the remote asset (present when verified=false)"
+    },
+    "remote_etag": {
+      "type": "string",
+      "description": "ETag header from the remote server (if available)"
+    },
+    "checked_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 timestamp of the verification check"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.org/schemas/registry-auth-status-response.json",
+  "title": "Registry Auth Status Response",
+  "description": "Response from GET /v1/auth/status. Checks machine signup approval status.",
+  "type": "object",
+  "required": ["machine_id", "status"],
+  "properties": {
+    "machine_id": {
+      "type": "string",
+      "description": "Machine identifier derived from SSH public key"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["approved", "pending", "rejected"],
+      "description": "Current signup status"
+    },
+    "owner_fingerprint": {
+      "type": "string",
+      "description": "SSH fingerprint of the owner key"
+    },
+    "registered_keys": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of SSH keys registered for this machine"
+    },
+    "approved_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of approval (if approved)"
+    }
+  }
+}

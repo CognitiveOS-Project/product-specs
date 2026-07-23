@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.org/schemas/registry-auth-signup-request.json",
+  "title": "Registry Auth Signup Request",
+  "description": "Request body for POST /v1/auth/signup. Machine sends its hardware/software profile and owner identity, signed with its SSH key.",
+  "type": "object",
+  "required": ["machine", "owner"],
+  "properties": {
+    "machine": {
+      "type": "object",
+      "description": "Machine identity profile",
+      "required": ["hardware", "software"],
+      "properties": {
+        "hardware": {
+          "type": "object",
+          "description": "Hardware characteristics",
+          "properties": {
+            "cpu": { "type": "string", "description": "CPU model name" },
+            "cores": { "type": "integer", "description": "Number of CPU cores" },
+            "arch": { "type": "string", "enum": ["amd64", "arm64", "riscv64"], "description": "CPU architecture" },
+            "ram_mb": { "type": "integer", "description": "Total RAM in megabytes" },
+            "storage_mb": { "type": "integer", "description": "Total storage in megabytes" },
+            "gpu": { "type": "string", "description": "GPU model name (if any)" },
+            "tpm": { "type": "boolean", "description": "TPM present" },
+            "machine_id": { "type": "string", "description": "Unique machine identifier" }
+          }
+        },
+        "software": {
+          "type": "object",
+          "description": "Software characteristics",
+          "properties": {
+            "os": { "type": "string", "description": "Operating system" },
+            "kernel": { "type": "string", "description": "Kernel version" },
+            "distro": { "type": "string", "description": "Linux distribution" },
+            "cpm_version": { "type": "string", "description": "CPM version" },
+            "packages": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Installed system packages"
+            },
+            "services": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Running services"
+            }
+          }
+        },
+        "network": {
+          "type": "object",
+          "description": "Network information",
+          "properties": {
+            "ip": { "type": "string", "description": "IP address" }
+          }
+        }
+      }
+    },
+    "owner": {
+      "type": "object",
+      "description": "Owner identity",
+      "required": ["public_key"],
+      "properties": {
+        "public_key": {
+          "type": "string",
+          "description": "SSH public key (full string from .pub file)"
+        },
+        "comment": {
+          "type": "string",
+          "description": "Optional comment (e.g. email)"
+        }
+      }
+    }
+  }
+}

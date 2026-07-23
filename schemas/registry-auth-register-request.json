@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.org/schemas/registry-auth-register-request.json",
+  "title": "Registry Auth Register Request",
+  "description": "Request body for POST /v1/auth/register",
+  "type": "object",
+  "required": ["public_key"],
+  "properties": {
+    "public_key": {
+      "type": "string",
+      "description": "SSH public key (full string from .pub file)"
+    }
+  }
+}

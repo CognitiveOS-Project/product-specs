@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.org/schemas/registry-search-response.json",
+  "title": "Registry Search Response",
+  "description": "Response from GET /v1/search",
+  "type": "object",
+  "required": ["results", "total", "page", "per_page"],
+  "properties": {
+    "results": {
+      "type": "array",
+      "items": { "$ref": "registry-package-search-result.json" },
+      "description": "Matching packages"
+    },
+    "total": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total number of matching results across all pages"
+    },
+    "page": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Current page number (1-indexed)"
+    },
+    "per_page": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "description": "Results per page"
+    }
+  }
+}

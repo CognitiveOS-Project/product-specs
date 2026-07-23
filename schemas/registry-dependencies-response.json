@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.org/schemas/registry-dependencies-response.json",
+  "title": "Registry Dependencies Response",
+  "description": "Response from GET /v1/patches/{name}/dependencies",
+  "type": "object",
+  "required": ["name", "version", "dependencies"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Package name"
+    },
+    "version": {
+      "type": "string",
+      "description": "Version inspected"
+    },
+    "dependencies": {
+      "type": "object",
+      "description": "Map of dependency names to SemVer version ranges from the manifest",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "transitive": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Flattened list of resolved transitive dependencies (name@version)"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "deprecated", "buggy"],
+      "description": "Status of the requested version"
+    }
+  }
+}

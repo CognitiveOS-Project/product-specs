@@ -10,6 +10,10 @@ The protocol is open: anyone can implement a compatible server, host a private r
 
 See [ADR-007](../adr/ADR-007-registry-server-architecture.md) for the full architectural rationale.
 
+## Schemas
+
+Machine-readable JSON Schema files for all request/response types are in [`/schemas/registry-*.json`](../schemas/). These document the **specification** (what the API should return). Use them for client validation and conformance testing.
+
 ## Base URL
 
 ```

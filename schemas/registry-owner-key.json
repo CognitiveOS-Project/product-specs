@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.org/schemas/registry-owner-key.json",
+  "title": "Registry Owner Key",
+  "description": "SSH key linked to an owner via the Web UI. Stored in S3 at auth/owners/{github_id}/owner.json",
+  "type": "object",
+  "required": ["fingerprint", "public_key", "display_name", "added_at", "status", "publish_permission"],
+  "properties": {
+    "fingerprint": {
+      "type": "string",
+      "description": "SSH key fingerprint (SHA256:...)"
+    },
+    "public_key": {
+      "type": "string",
+      "description": "Full SSH public key string"
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Owner-set human-readable name for this machine"
+    },
+    "added_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 timestamp when key was linked"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "revoked"],
+      "description": "Key status — revoked keys cannot publish"
+    },
+    "publish_permission": {
+      "type": "boolean",
+      "description": "Whether the owner has granted this key permission to publish"
+    }
+  }
+}

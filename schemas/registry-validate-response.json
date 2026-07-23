@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.org/schemas/registry-validate-response.json",
+  "title": "Registry Validate Response",
+  "description": "Response from POST /v1/patches/{name}/{version}/validate",
+  "type": "object",
+  "required": ["status", "rules"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["valid", "invalid"],
+      "description": "Overall validation status"
+    },
+    "rules": {
+      "type": "object",
+      "description": "Per-rule pass/fail results",
+      "properties": {
+        "A1": { "type": "boolean", "description": "Manifest is valid JSON with required fields" },
+        "A2": { "type": "boolean", "description": "Manifest matches schema" },
+        "A3": { "type": "boolean", "description": "sha256 is valid 64-char lowercase hex" },
+        "A4": { "type": "boolean", "description": "No dependency cycles" },
+        "A5": { "type": "boolean", "description": "All dependencies exist in registry" },
+        "A6": { "type": "boolean", "description": "No buggy transitive dependencies" },
+        "A7": { "type": "boolean", "description": "All referenced files exist in archive" },
+        "A8": { "type": "boolean", "description": "Hardware requirements within sane bounds" },
+        "A9": { "type": "boolean", "description": "Source repository is a valid URL" },
+        "A10": { "type": "boolean", "description": "Source issues URL is reachable" }
+      },
+      "additionalProperties": { "type": "boolean" }
+    }
+  }
+}

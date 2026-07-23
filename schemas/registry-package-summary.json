@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.org/schemas/registry-package-summary.json",
+  "title": "Registry Package Summary",
+  "description": "Package summary returned by GET /v1/patches/{name} (latest version, version list, total downloads)",
+  "type": "object",
+  "required": ["name", "latest_version", "versions"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Package name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description"
+    },
+    "author": {
+      "type": "string",
+      "description": "Author or organization"
+    },
+    "license": {
+      "type": "string",
+      "description": "SPDX license identifier"
+    },
+    "homepage": {
+      "type": "string",
+      "format": "uri",
+      "description": "Project homepage URL"
+    },
+    "repository": {
+      "type": "string",
+      "format": "uri",
+      "description": "Source repository URL"
+    },
+    "latest_version": {
+      "type": "string",
+      "description": "Latest version string"
+    },
+    "versions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "All available version strings"
+    },
+    "total_downloads": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Sum of downloads across all versions"
+    }
+  }
+}

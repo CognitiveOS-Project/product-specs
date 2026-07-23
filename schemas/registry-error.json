@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.org/schemas/registry-error.json",
+  "title": "Registry Error Response",
+  "description": "Standard error envelope returned by all registry-server endpoints",
+  "type": "object",
+  "required": ["error"],
+  "properties": {
+    "error": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Machine-readable error code",
+          "enum": [
+            "NOT_FOUND",
+            "VALIDATION_FAILED",
+            "ALREADY_EXISTS",
+            "UNAUTHORIZED",
+            "FORBIDDEN",
+            "RATE_LIMITED",
+            "INTERNAL_ERROR",
+            "GITHUB_NOT_CONFIGURED",
+            "GITHUB_ERROR",
+            "KEY_NOT_CLAIMED",
+            "KEY_REVOKED",
+            "PUBLISH_NOT_AUTHORIZED",
+            "NO_UNLOCK_REQUIRED",
+            "INVALID_UNLOCK_CODE",
+            "SIGNATURE_INVALID",
+            "METHOD_NOT_ALLOWED"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable error description"
+        },
+        "details": {
+          "type": "object",
+          "description": "Optional structured details about the error",
+          "properties": {
+            "field": {
+              "type": "string",
+              "description": "The field that caused the error"
+            },
+            "reason": {
+              "type": "string",
+              "description": "Specific reason for the failure"
+            }
+          }
+        }
+      }
+    }
+  }
+}

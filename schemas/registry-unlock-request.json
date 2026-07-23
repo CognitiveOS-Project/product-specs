@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.org/schemas/registry-unlock-request.json",
+  "title": "Registry Unlock Request",
+  "description": "Request body for POST /v1/patches/{name}/{version}/unlock",
+  "type": "object",
+  "required": ["code"],
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "Unlock code (e.g. CGOS-ABCD-EFGH)"
+    }
+  }
+}

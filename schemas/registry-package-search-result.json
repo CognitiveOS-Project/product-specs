@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.org/schemas/registry-package-search-result.json",
+  "title": "Registry Search Result",
+  "description": "Search result item returned by GET /v1/search",
+  "type": "object",
+  "required": ["name", "version", "description", "sha256", "downloads"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Package name"
+    },
+    "version": {
+      "type": "string",
+      "description": "Latest version string"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description"
+    },
+    "author": {
+      "type": "string",
+      "description": "Author or organization"
+    },
+    "license": {
+      "type": "string",
+      "description": "SPDX license identifier"
+    },
+    "hardware_requirements": {
+      "type": "object",
+      "description": "Minimum hardware specifications",
+      "properties": {
+        "min_ram_mb": { "type": "integer" },
+        "min_storage_mb": { "type": "integer" }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Declared functional capabilities"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 hex digest"
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 publication timestamp"
+    },
+    "downloads": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total download count"
+    }
+  }
+}
