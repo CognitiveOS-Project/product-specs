@@ -287,14 +287,22 @@ Output:
 {
   "name": "email-manager",
   "version": "1.2.0",
+  "filename": "email-manager-1.2.0-linux-amd64.cgp",
   "description": "Background email triaging",
   "author": "CognitiveOS",
   "license": "MIT",
-  "filename": "email-manager-1.2.0-linux-amd64.cgp"
+  "source": { "repository": "...", "issues": "..." },
+  "hardware_requirements": { "os": "linux", "arch": "amd64", "min_ram_mb": 512 },
+  "runtime": { "system_prompt": "...", "capabilities": ["triage"] },
+  "brain": { "base_model": "..." },
+  "checksum": { "sha256": "..." }
 }
 ```
 
-The `filename` field follows the naming convention: `<name>-<version>-<os>-<arch>.cgp` (or `<name>-<version>.cgp` for architecture-agnostic packages).
+Only non-empty fields are included. The `filename` field follows the naming convention:
+- `<name>-<version>-<os>-<arch>.cgp` (when OS and arch are set)
+- `<name>-<version>.cgp` (hardware requirements without OS/arch)
+- `<name>-<version>-universal.cgp` (no hardware requirements)
 
 **Exit codes:** 0=ok, 1=not found
 
@@ -343,7 +351,14 @@ cpm pack --bin ./build/bin/cli --name cognitiveos-cli --version 0.1.0
 
 #### `cpm publish <path> [--key <path>] [--download-url <url>] [--tag <tag>] [--scope <scope>] [--visibility <visibility>]`
 
-Publish a `.cgp` archive to the registry. Authenticates using SSH key signing. Falls back to `CPM_REGISTRY_TOKEN` (deprecated) if no SSH key is found.
+Publish a `.cgp` archive to the registry. Authenticates using SSH key signing.
+
+**Key resolution** (three-tier fallback):
+1. `--key <path>` flag (explicit)
+2. `~/.cpm/auth.json` key path (stored by `cpm auth login`)
+3. `~/.ssh/id_ed25519` (default)
+
+`CPM_REGISTRY_TOKEN` (deprecated) fallback applies to **notary proxy mode only**. Official publish strictly requires SSH authentication.
 
 **Official publish** (no `--download-url`): uploads the `.cgp` to the registry, which creates a GitHub Release and stores the package. Best for packages under 32 MB.
 
@@ -378,7 +393,7 @@ cpm install ghr:owner/repo@tag
 
 #### `cpm auth register [--key <path>]`
 
-Register SSH public key with the registry (one-time per key).
+Register SSH public key with the registry (one-time per key). Calls `POST /v1/auth/register`.
 
 ```bash
 cpm auth register --key ~/.ssh/id_ed25519.pub
@@ -405,15 +420,17 @@ Submit machine identity profile to the registry (one-time per machine).
 cpm auth signup --key ~/.ssh/id_ed25519
 ```
 
-Gathers machine profile (CPU, cores, arch, RAM, GPU, TPM, machine ID, OS, kernel, distro, packages, services, network) and owner's SSH public key. Signs the profile with the SSH private key and sends to the server.
+Gathers machine profile (CPU, cores, arch, RAM, storage, GPU, TPM, machine ID, OS, kernel, distro, CPM version, packages, services, local IP) and owner's SSH public key. Signs the profile with the SSH private key and sends to the server.
 
 Output:
 ```
 Signup submitted
   Machine ID: abc123...
-  Status:     approved
+  Status:     pending
   Next step:  cpm auth register --key ~/.ssh/id_ed25519.pub
 ```
+
+Status is `pending` until the owner links the key through the Web UI.
 
 **Exit codes:** 0=ok, 1=network error, 2=auth failed
 
@@ -427,13 +444,21 @@ cpm auth login --key ~/.ssh/id_ed25519
 
 Stores the key path in `~/.cpm/auth.json` and verifies the key is registered on the server via `PUT /v1/auth/status`.
 
-Output:
+Output (registered):
 ```
 Logged in
   Key:         /root/.ssh/id_ed25519
   Fingerprint: SHA256:abc123...
   Status:      registered
   Registered:  2026-07-20T00:42:38Z
+```
+
+Output (not registered):
+```
+Logged in
+  Key:         /root/.ssh/id_ed25519
+  Fingerprint: SHA256:abc123...
+  Status:      not registered (run: cpm auth register)
 ```
 
 After login, `cpm publish` automatically uses the stored key (no `--key` flag needed).

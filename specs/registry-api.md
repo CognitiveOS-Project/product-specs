@@ -124,9 +124,13 @@ Owners manage their machines through a web UI. The flow:
 | `/ui/logout` | GET | Session | Clear session |
 | `/ui/dashboard` | GET | Session | Show machine list |
 | `/ui/keys/add` | POST | Session | Link a new SSH key |
-| `/ui/keys/{fp}/revoke` | GET | Session | Revoke a key |
-| `/ui/keys/{fp}/activate` | GET | Session | Activate a revoked key |
-| `/ui/keys/{fp}/remove` | GET | Session | Remove a key |
+| `/ui/keys/{index}/grant-publish` | GET | Session | Grant publish permission |
+| `/ui/keys/{index}/revoke-publish` | GET | Session | Revoke publish permission |
+| `/ui/keys/{index}/revoke` | GET | Session | Revoke a key |
+| `/ui/keys/{index}/activate` | GET | Session | Activate a revoked key |
+| `/ui/keys/{index}/remove` | GET | Session | Remove a key |
+
+`{index}` is a 0-based integer position in the owner's keys array (not the fingerprint, to avoid base64 characters in URL paths).
 
 **Data model:**
 
@@ -152,7 +156,13 @@ type OwnerKey struct {
 
 **New env vars:** `CRS_GITHUB_CLIENT_ID`, `CRS_GITHUB_CLIENT_SECRET`, `CRS_SESSION_SECRET`, `CRS_GITHUB_REDIRECT_URL`
 
+`CRS_SESSION_SECRET` is the HMAC signing key for session cookies. When set, sessions survive server restarts. When unset, a random key is generated at startup and all sessions are lost on restart.
+
 ### Publish Flow
+
+There are two publish paths: **notary proxy** (metadata only) and **official** (hosts the .cgp binary).
+
+#### Notary Proxy (with `--download-url`)
 
 ```
 cpm publish ./patch.cgp --download-url https://...
@@ -166,12 +176,49 @@ cpm publish ./patch.cgp --download-url https://...
     Body: { manifest, sha256, download_urls, ... }
 
 Server:
-  1. Extract fingerprint from X-SSH-Fingerprint header
-  2. Load public key from S3: auth/keys/{fingerprint}.pub
-  3. Verify SSHSIG signature against manifest SHA-256 hash
-  4. If valid → store manifest in S3, return 201
-  5. If invalid → return 401 Unauthorized
+  1. Verify SSHSIG signature
+  2. Check owner gates (see below)
+  3. Store metadata in S3, return 201
 ```
+
+#### Official (no `--download-url`)
+
+```
+cpm publish ./patch.cgp
+  → Reads manifest.json from .cgp archive
+  → Reads .cgp binary data
+  → Sends: POST /v1/patches
+    Headers:
+      X-SSH-Fingerprint: SHA256:abc123...
+      X-SSH-Signature: <base64-encoded signature>
+    Content-Type: multipart/form-data
+    Parts:
+      metadata: { name, version, sha256, manifest, ... }
+      cgp: <binary .cgp archive>
+
+Server:
+  1. Verify SSHSIG signature
+  2. Check owner gates (see below)
+  3. Create GitHub repo (auto_init=true) if it doesn't exist
+  4. Ensure repo has at least one commit (ensureNotEmpty)
+  5. Create GitHub Release with version tag
+  6. Upload .cgp archive as release asset
+  7. Store metadata in S3, return 201
+```
+
+Requires `REGISTRY_GH_TOKEN` and `REGISTRY_GH_ORG` env vars. Max .cgp size: 32 MB.
+
+#### Owner Gates
+
+Before storing or publishing, the server enforces three authorization gates when an OwnerStore is configured:
+
+| Gate | Error Code | HTTP Status | Condition |
+|------|-----------|-------------|-----------|
+| Owner claim | `KEY_NOT_CLAIMED` | 403 | Key not linked to an owner via the Web UI |
+| Key status | `KEY_REVOKED` | 403 | Key has been revoked by the owner |
+| Publish permission | `PUBLISH_NOT_AUTHORIZED` | 403 | Owner has not granted publish permission for this machine |
+
+All three must pass. The key must be linked, active, and have publish permission.
 
 ### Scope Resolution
 
@@ -196,7 +243,7 @@ Health check.
   "status": "healthy",
   "uptime_seconds": 86400,
   "patches_count": 142,
-  "version": "2.0.0-draft"
+  "version": "2.1.0"
 }
 ```
 
@@ -810,6 +857,9 @@ All errors follow this envelope:
 | `ALREADY_EXISTS` | 409 | Resource already exists |
 | `UNAUTHORIZED` | 401 | Missing or invalid SSH signature |
 | `FORBIDDEN` | 403 | Authenticated but lacks required scope |
+| `KEY_NOT_CLAIMED` | 403 | Machine key not linked to an owner via the Web UI |
+| `KEY_REVOKED` | 403 | Machine key has been revoked by the owner |
+| `PUBLISH_NOT_AUTHORIZED` | 403 | Owner has not granted publish permission for this machine |
 | `INVALID_CODE` | 403 | Unlock code invalid or expired |
 | `RATE_LIMITED` | 429 | Too many requests |
 | `INTERNAL_ERROR` | 500 | Server-side error |
@@ -871,5 +921,8 @@ The registry stores all metadata in S3-compatible storage (Cloudflare R2 default
 ```
 notary/{source}/{path}/{version}/manifest.json   — package metadata + checksum
 auth/keys/{fingerprint}.pub                       — registered SSH public keys
+auth/owners/{github_id}/owner.json                — owner identity + linked keys
+auth/machines/{machine_id}/profile.json           — machine identity profile
+auth/machines/{machine_id}/status.json            — machine signup status
 unlock/{source}/{path}/{version}/{code_hash}.json — unlock code records
 ```
