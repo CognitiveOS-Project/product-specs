@@ -165,7 +165,8 @@ When a model bundles weights directly inside the archive (the `weights/` directo
 | `filename` | string | no | Expected filename after download (e.g. `gemma-4-2b-Q4_K_M.gguf`) |
 | `format` | string | no | Weight file format. Enum: `gguf`, `safetensors`, `pt` |
 | `quant` | string | no | Quantization level (e.g. `Q4_K_M`, `Q8_0`) |
-| `size_bytes` | integer | no | Expected file size in bytes |
+| `size_bytes` | integer | no | Expected file size in bytes (for pre-flight size checks before download) |
+| `sha256` | string | no | Expected SHA-256 hex digest of the weight file (verified after download). Pattern: `^[a-f0-9]{64}$` |
 
 ### `weights.local` Object
 

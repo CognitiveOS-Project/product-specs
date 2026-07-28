@@ -376,7 +376,12 @@
             "size_bytes": {
               "type": "integer",
               "minimum": 1,
-              "description": "Expected file size in bytes"
+              "description": "Expected file size in bytes (for pre-flight size checks before download)"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$",
+              "description": "Expected SHA-256 hex digest of the weight file (verified after download)"
             }
           }
         },
