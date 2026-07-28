@@ -67,35 +67,40 @@ The process follows the **Controller Pattern**:
 2. **Tool Invocation**: `cpm` calls the `tutor-trainer` MCP tool, passing the local training data and hyperparameters.
 3. **Local Training**: The `mcp-trainer` tool (implemented by the patch author) performs the LoRA training on the device (using CPU/NPU/GPU).
 4. **Adapter Generation**: The trainer saves the resulting lightweight adapter file to `/cognitiveos/patches/personalized-tutor/adapters/personalized.bin`.
-5. **Hot-Swap**: `cpm` signals `cognitiveosd`, which calls the inference engine's `/api/adapter` endpoint.
-6. **Binding**: The inference engine calls `llama_model_load_adapter` to bind the new weights to the active base model in-memory.
+5. **Hot-Swap**: `cpm` signals `cognitiveosd`, which calls the inference engine's `/api/adapter` endpoint to load the adapter.
+6. **Binding**: The inference engine loads the LoRA adapter and binds the new weights to the active base model in-memory.
+
+> **Note:** The `/api/adapter` endpoint is implemented in the inference engine but not yet documented in the inference-api.md spec.
 
 ## Verifying the Hot-Swap
 
 You can verify that the adapter is active by checking the model status.
 
 ```bash
-curl http://localhost:11434/cognitiveos/status
+curl http://localhost:11434/health
 ```
 
 **Response:**
 ```json
 {
-  "status": "ready",
+  "status": "healthy",
+  "uptime_seconds": 3600,
   "models_loaded": 1,
-  "active_model": {
-    "name": "/cognitiveos/patches/personalized-tutor/weights/base.gguf + adapter(/cognitiveos/patches/personalized-tutor/adapters/personalized.bin)",
-    "path": "/cognitiveos/patches/personalized-tutor/weights/base.gguf",
-    "ram_usage_mb": 4500
-  }
+  "ram_usage_percent": 42
 }
+```
+
+To see the full model info including the adapter, use the `/cognitiveos/status` endpoint:
+
+```bash
+curl http://localhost:11434/cognitiveos/status
 ```
 
 ## Rollback
 
 Because the base model remains immutable, rolling back a tuning session is trivial:
 ```bash
-# Remove the adapter file and reload the base model
+# Remove the adapter file and reinstall the base package
 rm /cognitiveos/patches/personalized-tutor/adapters/personalized.bin
-cpm reload personalized-tutor
+cpm install personalized-tutor
 ```

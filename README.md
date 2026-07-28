@@ -32,6 +32,8 @@ Standards, schemas, and protocol definitions for the CognitiveOS ecosystem.
 | Path | Description |
 |------|-------------|
 | `specs/tutorials/cgp-publishing.md` | End-to-end guide to publishing a .cgp package |
+| `specs/tutorials/secret-management.md` | Secret management with `cpm secret` |
+| `specs/tutorials/registry-server-web-ui.md` | Registry server Web UI — owner dashboard |
 | `specs/tutorials/cpm-workflow.md` | CPM daily workflow tutorial |
 | `specs/tutorials/cpm-tune.md` | CPM tune command tutorial |
 | `specs/tutorials/download-weights.md` | Downloading model weights |

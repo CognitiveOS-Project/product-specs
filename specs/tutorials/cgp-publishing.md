@@ -349,6 +349,20 @@ CPM_PATCHES_DIR=/tmp/cpm-test/patches cpm list
 CPM_PATCHES_DIR=/tmp/cpm-test/patches cpm info my-test-skill
 ```
 
+### Install with Unlock Code (Paid Content)
+
+If your package includes `unlock_codes` in the manifest, consumers need the `--unlock` flag:
+
+```bash
+# Without unlock — blocked with E012
+CPM_PATCHES_DIR=/tmp/cpm-test/patches cpm install premium-analytics@1.0.0
+
+# With unlock — verified server-side
+CPM_PATCHES_DIR=/tmp/cpm-test/patches cpm install premium-analytics@1.0.0 --unlock ANALYTICS-PRO-2026
+```
+
+See [CGP Lifecycle](cgp-lifecycle.md#unlock-codes) for how unlock codes are stored and verified.
+
 ## Step 10: Clean Up
 
 Remove the test package from the registry (requires admin access):
@@ -414,6 +428,17 @@ Or install directly via UPR:
 ```bash
 cpm install ghr:your-org/your-repo@v1.0.0
 ```
+
+### "E012" unlock required error
+
+The package has `unlock_codes` but you didn't provide `--unlock`:
+```bash
+cpm install premium-analytics@1.0.0 --unlock YOUR-CODE-HERE
+```
+
+### "INVALID_UNLOCK_CODE" error (403)
+
+The unlock code doesn't match. Verify the code and try again. Codes are case-sensitive.
 
 ### Registry unreachable
 

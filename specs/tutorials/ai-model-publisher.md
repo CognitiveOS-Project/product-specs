@@ -96,10 +96,14 @@ cpm install gemma-4-2b@1.0.0-Q8_0
 
 ## Paid Models with Unlock Codes
 
-For commercial models, add license enforcement:
+For commercial models, add unlock codes to the manifest:
 
 ```json
 {
+  "unlock_codes": [
+    "GEMMA-4-2B-PRO-2026",
+    "GEMMA-4-2B-ENTERPRISE"
+  ],
   "license": "proprietary",
   "hardware_requirements": {
     "min_ram_mb": 8192,
@@ -108,17 +112,32 @@ For commercial models, add license enforcement:
 }
 ```
 
+The registry stores only SHA-256 hashes of these codes. Consumers install with:
+
 ```bash
-# User installs — triggers unlock flow
+# Without unlock — blocked with E012
 cpm install gemma-4-27b-pro
 
-# Raw Model intercepts: "Premium model requires unlock code"
-# User enters code purchased from your website
-# Raw Model validates against registry, authorizes download
-# Model loads
+# With unlock — verified server-side
+cpm install gemma-4-27b-pro --unlock GEMMA-4-2B-PRO-2026
 ```
 
-## Build & Install
+See [CGP Lifecycle](cgp-lifecycle.md#unlock-codes) for the full unlock verification flow.
+
+## Build & Publish
+
+Before publishing, set up authentication:
+
+```bash
+# One-time: register machine identity and SSH key
+cpm auth signup --key ~/.ssh/id_ed25519.pub
+cpm auth register --key ~/.ssh/id_ed25519.pub
+cpm auth login --key ~/.ssh/id_ed25519
+```
+
+Then claim your key in the [Web UI](registry-server-web-ui.md) and grant publish permission.
+
+Package and publish:
 
 ```bash
 cpm init gemma-4-2b --template gguf-model
@@ -127,8 +146,8 @@ cd gemma-4-2b
 # No MCP servers needed — pure model package
 # Edit cognitive.json as shown above
 
-# Package
-tar czf gemma-4-2b-1.0.0.cgp .
+# Package and publish
+cpm pack
 cpm publish ./gemma-4-2b-1.0.0.cgp
 ```
 

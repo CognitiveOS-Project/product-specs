@@ -141,6 +141,84 @@ cpm init my-gemma-model --template gguf-model
 
 This scaffolds a `cognitive.json` with a pre-filled `weights.remote` block. Edit the placeholders (`model_id`, `filename`, `quant`, `size_bytes`) and publish to the registry.
 
+## Weight Methods
+
+The `weights.method` field controls how weights are consumed. Three methods are available:
+
+### Remote (default)
+
+Downloads from HuggingFace Hub at install time:
+
+```json
+{
+  "brain": {
+    "wide_model": {
+      "weights": {
+        "method": "remote",
+        "remote": {
+          "url": "https://huggingface.co/Qwen/Qwen2.5-1.5B-GGUF/resolve/main/qwen2.5-1.5b-q4_k_m.gguf",
+          "filename": "qwen2.5-1.5b-q4_k_m.gguf"
+        }
+      }
+    }
+  }
+}
+```
+
+### Local
+
+Includes the weight file in the `.cgp` archive at pack time. No download needed at install:
+
+```json
+{
+  "brain": {
+    "wide_model": {
+      "weights": {
+        "method": "local",
+        "local": {
+          "path": "weights/model.gguf"
+        }
+      }
+    }
+  }
+}
+```
+
+Place the weight file in `weights/` before running `cpm pack`. The archive will be larger but fully self-contained — useful for air-gapped deployments or models not on HuggingFace.
+
+### Cloud
+
+Delegates inference to an OpenAI-compatible API provider. No weight file involved:
+
+```json
+{
+  "brain": {
+    "wide_model": {
+      "weights": {
+        "method": "cloud",
+        "cloud": {
+          "api_base": "https://api.openai.com",
+          "model_id": "gpt-4o-mini",
+          "api_key": "${OPENAI_API_KEY}"
+        }
+      }
+    }
+  }
+}
+```
+
+The `${OPENAI_API_KEY}` placeholder is resolved at install time from the secrets store. `cpm install` tests API reachability via HTTP HEAD before completing installation.
+
+```bash
+# Store the API key first
+cpm secret add OPENAI_API_KEY sk-abc123
+
+# Then install — secrets are resolved automatically
+cpm install cloud-assistant@1.0.0
+```
+
+See [Secret Management](secret-management.md) for storing API keys.
+
 ## Example: Downloading a Full Quantization Suite
 
 ```bash

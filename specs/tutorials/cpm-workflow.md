@@ -109,6 +109,25 @@ JSON output:
 
 ## 6. Register SSH Key
 
+Before publishing, set up authentication. The full auth flow has four commands:
+
+### Sign Up (Machine Identity)
+
+Register your machine's identity profile with the registry:
+
+```bash
+cpm auth signup --key ~/.ssh/id_ed25519.pub
+```
+
+Output:
+```
+Machine registered
+  Machine ID:   a1b2c3d4e5f6
+  Status:       pending (claim your key in the Web UI)
+```
+
+### Register Your Key
+
 Register your SSH public key with the registry (one-time per key):
 
 ```bash
@@ -123,6 +142,26 @@ Registered SSH key
   Comment:     your-key
   Registered:  2026-07-20T00:42:38Z
 ```
+
+### Login (Store Key Locally)
+
+Store the key path locally so `cpm publish` can find it automatically:
+
+```bash
+cpm auth login --key ~/.ssh/id_ed25519
+```
+
+After login, `cpm publish` no longer requires `--key`.
+
+### Logout
+
+Clear the local auth state:
+
+```bash
+cpm auth logout
+```
+
+See [Web UI Dashboard](registry-server-web-ui.md) for the full owner claim and publish permission flow.
 
 ## 7. Publish to Registry
 
@@ -178,6 +217,57 @@ cpm install ./my-awesome-skill-0.1.0.cgp
 cpm list
 ```
 
+### Paid Content (Unlock Codes)
+
+If the package requires an unlock code:
+
+```bash
+cpm install premium-analytics@1.0.0 --unlock ANALYTICS-PRO-2026
+```
+
+Without `--unlock`, installation is blocked with error `E012`.
+
+## 9. Manage Secrets
+
+Store API keys and credentials that packages need at runtime:
+
+```bash
+# Add a secret
+cpm secret add API_KEY sk-abc123
+
+# Add to global scope (survives everything)
+cpm secret add HF_TOKEN hf_abc123 --scope global
+
+# List secrets (values masked by default)
+cpm secret list
+
+# List with values revealed
+cpm secret list --reveal
+
+# Get a single secret
+cpm secret get API_KEY
+
+# Remove a secret
+cpm secret remove API_KEY
+
+# Remove with purge (deletes secrets on next remove)
+cpm remove my-awesome-skill --purge
+```
+
+Secrets use `${VAR}` placeholders in manifests and are resolved at install time. Archives never contain real values.
+
+See [Secret Management](secret-management.md) for the full reference.
+
+## 10. Remove Packages
+
+```bash
+# Remove a package (preserves secrets)
+cpm remove my-awesome-skill
+
+# Remove and delete associated secrets
+cpm remove my-awesome-skill --purge
+```
+
 ## 9. Verify Checksums
 
 The notary system stores checksums for all published packages:
@@ -206,8 +296,13 @@ Response:
 | **Build** | `go build ...` (if MCP server) | Create tools/binaries |
 | **Pack** | `cpm pack` | Bundle and verify as `.cgp` |
 | **Verify** | `cpm verify *.cgp` | Validate archive integrity |
+| **Signup** | `cpm auth signup --key *.pub` | Register machine identity |
 | **Auth** | `cpm auth register --key *.pub` | Register SSH key (one-time) |
+| **Login** | `cpm auth login --key *` | Store key path locally |
 | **Publish** | `cpm publish *.cgp --key` | Distribute to registry |
+| **Secrets** | `cpm secret add/list/remove/get` | Manage runtime credentials |
 | **Search** | `cpm search <query>` | Find packages |
 | **Install** | `cpm install <name>` | Install from registry |
+| **Unlock** | `cpm install <name> --unlock <code>` | Install paid content |
+| **Remove** | `cpm remove <name>` | Uninstall package |
 | **Info** | `cpm info --json` | Inspect manifest (CI/CD) |

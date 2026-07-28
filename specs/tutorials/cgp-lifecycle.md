@@ -73,6 +73,12 @@ Key fields:
 | `hardware_requirements` | No | Min RAM, storage, NPU |
 | `runtime.system_prompt` | No | Path to system prompt file |
 | `runtime.tools_root` | No | Path to tools directory |
+| `unlock_codes` | No | Array of plaintext unlock codes (hashed on publish) |
+| `weights.method` | No | Weight consumption method: `remote` (default), `local`, or `cloud` |
+| `weights.local.path` | No | Path to local weight file (when `method: local`) |
+| `weights.cloud.api_base` | No | Cloud API base URL (when `method: cloud`) |
+| `weights.cloud.model_id` | No | Cloud model identifier (when `method: cloud`) |
+| `weights.cloud.api_key` | No | Cloud API key, supports `${SECRET}` placeholders (when `method: cloud`) |
 
 ### Add Content
 
@@ -88,6 +94,32 @@ my-skill/
 └── weights/
     └── model.gguf         # Model weights (optional)
 ```
+
+### Archive Structure
+
+When `cpm pack` runs, it creates a `.cgp` file (tar.gz) containing everything needed for the package:
+
+```
+my-skill-0.1.0.cgp (tar.gz)
+├── cognitive.json              # Manifest
+├── prompts/
+│   └── system.md              # System prompt
+├── tools/
+│   └── mcp-server             # MCP server binary (if present)
+└── weights/
+    └── model.gguf             # Weight file (if present)
+```
+
+What's inside vs. what's not:
+
+| In the archive | NOT in the archive |
+|----------------|-------------------|
+| `cognitive.json` (with `${VAR}` placeholders intact) | Resolved secret values |
+| Prompt files | CI/CD workflow files (`.github/`) |
+| MCP server binaries | Weight files downloaded at install time |
+| Local weight files (`method: local`) | Registry metadata |
+
+The archive always contains `${VAR}` placeholders — resolution happens at install time, not pack time.
 
 ## Phase 2: Package
 
@@ -148,6 +180,108 @@ Output:
   "filename": "my-skill-0.1.0.cgp"
 }
 ```
+
+### Unlock Codes
+
+Packages can require unlock codes for paid or gated content. Add `unlock_codes` to the manifest:
+
+```json
+{
+  "name": "premium-analytics",
+  "version": "1.0.0",
+  "unlock_codes": [
+    "ANALYTICS-PRO-2026",
+    "ANALYTICS-ENTERPRISE"
+  ],
+  ...
+}
+```
+
+During `cpm publish`, the registry hashes each code with SHA-256 and stores only the hashes. The plaintext codes are never stored server-side.
+
+Consumers install with the `--unlock` flag:
+
+```bash
+cpm install premium-analytics@1.0.0 --unlock ANALYTICS-PRO-2026
+```
+
+Without `--unlock`, installation is blocked with error `E012`. With an incorrect code, the server returns `INVALID_UNLOCK_CODE`.
+
+See [System Codes](../system-codes.md) for the full unlock verification protocol.
+
+### Weight Methods
+
+The `weights.method` field controls how model weights are consumed:
+
+| Method | What happens at pack | What happens at install |
+|--------|---------------------|------------------------|
+| `remote` (default) | No weights in archive | Downloads from `weights.remote.url` via HuggingFace Hub |
+| `local` | Weight file included in archive from `weights.local.path` | File already present — no download |
+| `cloud` | No weights in archive | Tests API reachability — no download needed |
+
+#### Remote weights (default)
+
+```json
+{
+  "brain": {
+    "wide_model": {
+      "weights": {
+        "method": "remote",
+        "remote": {
+          "url": "https://huggingface.co/Qwen/Qwen2.5-1.5B-GGUF/resolve/main/qwen2.5-1.5b-q4_k_m.gguf",
+          "filename": "qwen2.5-1.5b-q4_k_m.gguf"
+        }
+      }
+    }
+  }
+}
+```
+
+#### Local weights
+
+Place the weight file in `weights/` and reference it:
+
+```json
+{
+  "brain": {
+    "wide_model": {
+      "weights": {
+        "method": "local",
+        "local": {
+          "path": "weights/model.gguf"
+        }
+      }
+    }
+  }
+}
+```
+
+`cpm pack` includes the weight file in the archive. The `.cgp` will be larger but self-contained.
+
+#### Cloud weights
+
+For OpenAI-compatible API providers:
+
+```json
+{
+  "brain": {
+    "wide_model": {
+      "weights": {
+        "method": "cloud",
+        "cloud": {
+          "api_base": "https://api.openai.com",
+          "model_id": "gpt-4o-mini",
+          "api_key": "${OPENAI_API_KEY}"
+        }
+      }
+    }
+  }
+}
+```
+
+The `${OPENAI_API_KEY}` placeholder is resolved at install time from the secrets store. `cpm install` tests API reachability via HTTP HEAD before completing installation.
+
+See [Secret Management](secret-management.md) for storing API keys.
 
 ## Phase 3: Publish
 
@@ -255,6 +389,19 @@ cpm install ./my-skill-0.1.0.cgp
 cpm install github.com/your-org/my-skill@v1.0.0
 ```
 
+### Paid Content (Unlock Codes)
+
+If the package has `unlock_codes` in its manifest, installation requires the `--unlock` flag:
+
+```bash
+# Without unlock — blocked
+cpm install premium-analytics@1.0.0
+# ERROR:E012: package requires unlock code. Run: cpm install <name>@<version> --unlock <code>
+
+# With unlock — verified server-side
+cpm install premium-analytics@1.0.0 --unlock ANALYTICS-PRO-2026
+```
+
 ### What Happens During Install
 
 1. **Resolve** — find the package (registry, GitHub, local file)
@@ -263,9 +410,11 @@ cpm install github.com/your-org/my-skill@v1.0.0
 4. **Audit** — check hardware requirements (RAM, storage, NPU)
 5. **Resolve Dependencies** — install any required packages
 6. **Extract** — unpack to `/cognitiveos/patches/<name>/`
-7. **Spawn** — start MCP servers declared in the manifest
-8. **Register** — make tools available to the Wide Model
-9. **Inject** — prepend system prompt to the AI's prompt chain
+7. **Resolve Secrets** — replace `${VAR}` placeholders with real values from the secrets store
+8. **Verify Unlock** — if `unlock_codes` exist, require `--unlock <code>` and verify server-side
+9. **Spawn** — start MCP servers declared in the manifest
+10. **Register** — make tools available to the Wide Model
+11. **Inject** — prepend system prompt to the AI's prompt chain
 
 ### Verify Installation
 
@@ -397,3 +546,6 @@ cpm info hello-world
 - [Publish Flow](../cpm-publish-flow.md) — Architecture and constraints
 - [Security Model](../security-model.md) — Authentication and integrity
 - [Fair Use Policy](../fair-use-policy.md) — Rate limits and acceptable use
+- [ADR-010](../adr/ADR-010-cloud-models-and-secrets.md) — Cloud models and secret management
+- [Secret Management](secret-management.md) — `cpm secret` tutorial
+- [Web UI Dashboard](registry-server-web-ui.md) — Owner key management

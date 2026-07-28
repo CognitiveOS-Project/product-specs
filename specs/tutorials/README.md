@@ -8,6 +8,8 @@ Real-world examples showcasing the CognitiveOS package ecosystem.
 |----------|---------------------|
 | [CGP Lifecycle](cgp-lifecycle.md) | Complete package lifecycle: create → package → publish → install → verify |
 | [CPM Workflow](cpm-workflow.md) | Step-by-step guide to init, pack, publish with correct cpm usage |
+| [Secret Management](secret-management.md) | `cpm secret` commands, `${VAR}` placeholders, scope hierarchy |
+| [Registry Server Web UI](registry-server-web-ui.md) | Owner dashboard: GitHub OAuth, key management, publish permissions |
 
 ## Package Examples
 
