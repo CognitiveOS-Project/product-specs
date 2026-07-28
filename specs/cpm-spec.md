@@ -482,6 +482,84 @@ Logged out
 
 **Exit codes:** 0=ok
 
+#### `cpm secret add <name> <value> [--scope patch|global] [--force]`
+
+Add or update a secret (API key, token, credential).
+
+```bash
+cpm secret add API_KEY sk-abc123
+cpm secret add API_KEY sk-newkey --force
+cpm secret add HF_TOKEN hf_abc123 --scope global
+```
+
+**Scopes:**
+- `patch` (default): stores in `/cognitiveos/lib/cpm/secrets/<patch-name>/secrets.json`
+- `global`: stores in `~/.cpm/secrets.json`
+
+**Behavior:**
+- Without `--force`: fails if secret already exists in the same scope
+- With `--force`: replaces the existing value
+
+**Output:**
+```
+✓ Added secret "API_KEY" to patch scope
+```
+
+**Exit codes:** 0=ok, 1=exists (without --force)
+
+#### `cpm secret list [--scope patch|global] [--reveal]`
+
+List secrets. Shows merged view (patch + global) by default.
+
+```bash
+cpm secret list
+cpm secret list --reveal
+cpm secret list --scope global
+```
+
+**Output (default):**
+```
+Patch:
+  API_KEY       ****7654
+
+Global:
+  HF_TOKEN      ****a3b2
+```
+
+**Output (--reveal):**
+```
+Patch:
+  API_KEY       sk-abc123...7654
+
+Global:
+  HF_TOKEN      hf_abc123...a3b2
+```
+
+**Exit codes:** 0=ok
+
+#### `cpm secret remove <name> [--scope patch|global]`
+
+Remove a secret.
+
+```bash
+cpm secret remove API_KEY
+cpm secret remove HF_TOKEN --scope global
+```
+
+**Exit codes:** 0=ok, 1=not found
+
+#### `cpm secret get <name>`
+
+Print a secret value to stdout. Checks patch scope first, then global.
+
+```bash
+cpm secret get API_KEY
+```
+
+**Exit codes:** 0=ok, 1=not found
+
+**Exit codes:** 0=ok
+
 #### `cpm register-dependencies <package> [--root <path>]`
 Register system-level dependencies for an installed patch in the installation queue.
 ```bash

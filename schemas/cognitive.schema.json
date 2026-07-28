@@ -335,8 +335,13 @@
     },
     "weights": {
       "type": "object",
-      "description": "Weight source configuration. A model references weights either inline (bundled in archive) or remotely (downloaded at install time).",
+      "description": "Weight source configuration. A model references weights either inline (bundled in archive), remotely (downloaded at install time), or via a cloud API provider.",
       "properties": {
+        "method": {
+          "type": "string",
+          "enum": ["remote", "local", "cloud"],
+          "description": "Weight consumption method. 'remote' = download at install time, 'local' = file bundled in CGP archive, 'cloud' = OpenAI-compatible API provider"
+        },
         "remote": {
           "type": "object",
           "description": "Remote weight source — weights are downloaded at install time rather than bundled",
@@ -372,6 +377,35 @@
               "type": "integer",
               "minimum": 1,
               "description": "Expected file size in bytes"
+            }
+          }
+        },
+        "local": {
+          "type": "object",
+          "description": "Local weight source — file bundled in the CGP archive",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Relative path inside the archive (e.g. weights/model.gguf)"
+            }
+          }
+        },
+        "cloud": {
+          "type": "object",
+          "description": "Cloud weight source — OpenAI-compatible API provider",
+          "properties": {
+            "api_base": {
+              "type": "string",
+              "format": "uri",
+              "description": "API base URL (e.g. https://api.openai.com/v1)"
+            },
+            "model_id": {
+              "type": "string",
+              "description": "Model identifier at the provider (e.g. gpt-4o-mini)"
+            },
+            "api_key": {
+              "type": "string",
+              "description": "API key (supports ${SECRET_NAME} placeholders resolved at install time)"
             }
           }
         }

@@ -145,9 +145,15 @@ Inference parameters shared across models. Each model subtype can override indiv
 
 ## `weights` Object ($defs.weights)
 
-Weight source configuration. A model references weights either inline (bundled in the archive) or remotely (downloaded at install time). The `remote` sub-object defines a download source.
+Weight source configuration. A model references weights either inline (bundled in the archive), remotely (downloaded at install time), or via a cloud API provider. The `method` field selects which sub-object is active.
 
-When a model bundles weights directly inside the archive (the `weights/` directory), no `weights` field is needed. The `weights` field is only used when specifying remote sources.
+When a model bundles weights directly inside the archive (the `weights/` directory), use `method: "local"`. When weights are downloaded at install time, use `method: "remote"`. When consuming from an OpenAI-compatible API, use `method: "cloud"`.
+
+### `weights.method` Field
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `method` | string | no | Weight consumption method. Enum: `remote`, `local`, `cloud`. Default: `remote` |
 
 ### `weights.remote` Object
 
@@ -160,6 +166,20 @@ When a model bundles weights directly inside the archive (the `weights/` directo
 | `format` | string | no | Weight file format. Enum: `gguf`, `safetensors`, `pt` |
 | `quant` | string | no | Quantization level (e.g. `Q4_K_M`, `Q8_0`) |
 | `size_bytes` | integer | no | Expected file size in bytes |
+
+### `weights.local` Object
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `path` | string | no | Relative path inside the archive (e.g. `weights/model.gguf`) |
+
+### `weights.cloud` Object
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `api_base` | string (uri) | no | API base URL (e.g. `https://api.openai.com/v1`) |
+| `model_id` | string | no | Model identifier at the provider (e.g. `gpt-4o-mini`) |
+| `api_key` | string | no | API key. Supports `${SECRET_NAME}` placeholders resolved at install time |
 
 ---
 

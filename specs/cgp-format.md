@@ -21,7 +21,7 @@ For packages containing compiled binaries, the filename should reflect the targe
 │   └── templates/          # Structured response formats
 ├── tools/                  # MCP servers and scripts (OPTIONAL)
 │   └── mcp-server-*        # Executable MCP server binary or script
-└── weights/                # Model weights (OPTIONAL)
+└── weights/                # Model weights (OPTIONAL, for method: "local")
     └── *.gguf              # Bundled GGUF firmware or adapter
 ```
 
@@ -31,6 +31,19 @@ For packages containing compiled binaries, the filename should reflect the targe
 2. All paths in `cognitive.json` are relative to the archive root.
 3. Executables in `tools/` must be compiled for the target architecture or be scripts with a valid shebang.
 4. Archives use `.cgp` extension. Uncompressed directories are identified by the presence of `cognitive.json`.
+5. Weight files in `weights/` are included when `brain.*_model.weights.method` is `"local"`. The `weights.local.path` field references files in this directory.
+
+### Weight Methods
+
+The `brain.*_model.weights.method` field selects how model weights are consumed:
+
+| Method | Weight Source | Archive Contains | Install Behavior |
+|--------|--------------|-----------------|------------------|
+| `remote` | HuggingFace download | No weight files | Downloads weights at install time |
+| `local` | Bundled in archive | `weights/*.gguf` | No download — files already in archive |
+| `cloud` | OpenAI-compatible API | No weight files | No download — connects to API at runtime |
+
+Cloud models use `${SECRET_NAME}` placeholders in `api_key` fields, resolved at install time via `cpm secret`.
 
 ## Lifecycle
 

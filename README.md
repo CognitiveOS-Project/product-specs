@@ -25,6 +25,7 @@ Standards, schemas, and protocol definitions for the CognitiveOS ecosystem.
 | `specs/boot-flow.md` | Detailed boot flow specification for ISO and Docker deployments |
 | `specs/fair-use-policy.md` | Fair use policy for the public registry |
 | `specs/cpm-publish-flow.md` | CPM publish flow architecture — official and notary proxy paths |
+| `specs/manifest-fields.md` | Manifest field reference (weights.method, weights.local, weights.cloud) |
 
 ### Tutorials
 
@@ -86,6 +87,7 @@ All schemas are in `schemas/`. See the [schemas directory](https://github.com/Co
 | `adr/ADR-007-registry-server-architecture.md` | Registry server architecture (S3, SSH auth, notary) |
 | `adr/ADR-008-hosting-decision.md` | Hosting decision (Cloud Run vs alternatives) |
 | `adr/ADR-009-machine-identity-profile.md` | Machine identity profile and gated publisher model |
+| `adr/ADR-010-cloud-models-and-secrets.md` | Cloud model support and secret management |
 
 ## Repos
 

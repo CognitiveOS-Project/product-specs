@@ -46,11 +46,14 @@ The CognitiveOS filesystem is organized around two principles:
 │   └── state.json              # Current Wide Model state snapshot
 ├── lib/                        # System libraries and package manager state
 │   └── cpm/
-│       └── queue/              # Dependency installation queue (persistent)
-│           ├── build/
-│           ├── boot/
-│           ├── install/
-│           └── runtime/
+│       ├── queue/              # Dependency installation queue (persistent)
+│       │   ├── build/
+│       │   ├── boot/
+│       │   ├── install/
+│       │   └── runtime/
+│       └── secrets/            # Per-patch secrets (API keys, tokens)
+│           └── <patch-name>/
+│               └── secrets.json
 ├── audit/                      # Resource audit snapshots (writable)
 │   ├── current.json            # Latest audit result
 │   └── history/                # Historical audit records
@@ -99,19 +102,22 @@ For devices with limited flash (MCUs, smart home), the same logical layout compr
 | `/cognitiveos/run/` | tmpfs | cognitiveosd, MCP servers | Volatile (lost on shutdown) |
 | `/cognitiveos/data/` | Data partition | Wide Model, cognitiveosd | Survives idle, wiped on reset |
 | `/cognitiveos/lib/cpm/queue/` | Data partition | cpm | Survives idle, wiped on reset |
+| `/cognitiveos/lib/cpm/secrets/` | Data partition | cpm | Survives idle, survives `cpm remove`, wiped on reset |
 | `/cognitiveos/audit/` | Data partition | cognitiveosd | Survives idle, wiped on reset |
 | `/cognitiveos/logs/` | Data partition | All components | Rotated, survives idle, wiped on reset |
 | `/etc/cognitiveos/` | Root partition | Physical access only | Always persists |
 
 ## What Survives Each Operation
 
-| Operation | `/cognitiveos/models/raw/` | `/cognitiveos/models/wide/` | `/cognitiveos/patches/` | `/cognitiveos/data/` | `/cognitiveos/run/` |
-|-----------|---------------------------|---------------------------|------------------------|---------------------|---------------------|
-| Wake/Idle cycle | ✅ | ✅ | ✅ | ✅ | ❌ (flushed) |
-| System update (Wide Model swap) | ✅ | Updated | ✅ | ✅ | ❌ (flushed) |
-| Security shutdown | ✅ | ✅ | ✅ | ✅ | ❌ (flushed) |
-| Reset code | ✅ | ❌ (wiped) | ❌ (wiped) | ❌ (wiped) | ❌ (flushed) |
-| Physical firmware flash | Updated | ❌ (wiped) | ❌ (wiped) | ❌ (wiped) | ❌ (flushed) |
+| Operation | `/cognitiveos/models/raw/` | `/cognitiveos/models/wide/` | `/cognitiveos/patches/` | `/cognitiveos/lib/cpm/secrets/` | `/cognitiveos/data/` | `/cognitiveos/run/` |
+|-----------|---------------------------|---------------------------|------------------------|--------------------------------|---------------------|---------------------|
+| Wake/Idle cycle | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ (flushed) |
+| System update (Wide Model swap) | ✅ | Updated | ✅ | ✅ | ✅ | ❌ (flushed) |
+| Security shutdown | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ (flushed) |
+| `cpm remove` | ✅ | ✅ | ❌ (deleted) | ✅ (preserved) | ✅ | N/A |
+| `cpm remove --purge` | ✅ | ✅ | ❌ (deleted) | ❌ (deleted) | ✅ | N/A |
+| Reset code | ✅ | ❌ (wiped) | ❌ (wiped) | ❌ (wiped) | ❌ (wiped) | ❌ (flushed) |
+| Physical firmware flash | Updated | ❌ (wiped) | ❌ (wiped) | ❌ (wiped) | ❌ (wiped) | ❌ (flushed) |
 
 ## File Naming Conventions
 
