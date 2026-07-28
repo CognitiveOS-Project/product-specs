@@ -39,8 +39,10 @@ Standards, schemas, and protocol definitions for the CognitiveOS ecosystem.
 | `specs/tutorials/download-weights.md` | Downloading model weights |
 | `specs/tutorials/cli-mode.md` | CLI mode tutorial |
 | `specs/tutorials/cgp-lifecycle.md` | .cgp lifecycle overview |
+| `specs/tutorials/sandboxed-cgp-development.md` | Local CGP development: scaffold, build, verify, test |
+| `specs/tutorials/custom-distro-images.md` | Building bootable images from source |
 
-See the full list in `specs/tutorials/` — 20+ tutorials covering use cases from IoT vendors to AI companions.
+See the full list in `specs/tutorials/` — 25+ tutorials covering use cases from IoT vendors to AI companions.
 
 ### JSON Schemas
 

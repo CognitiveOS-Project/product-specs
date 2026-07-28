@@ -10,6 +10,8 @@ Real-world examples showcasing the CognitiveOS package ecosystem.
 | [CPM Workflow](cpm-workflow.md) | Step-by-step guide to init, pack, publish with correct cpm usage |
 | [Secret Management](secret-management.md) | `cpm secret` commands, `${VAR}` placeholders, scope hierarchy |
 | [Registry Server Web UI](registry-server-web-ui.md) | Owner dashboard: GitHub OAuth, key management, publish permissions |
+| [Sandboxed CGP Development](sandboxed-cgp-development.md) | Local CGP development: scaffold, build, verify, test without registry |
+| [Custom Distro Images](custom-distro-images.md) | Building bootable ISOs, RPi images, Docker containers from source |
 
 ## Package Examples
 
