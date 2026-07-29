@@ -192,20 +192,20 @@ ENTRYPOINT ["/usr/local/bin/cognitiveos-cli"]
 cognitiveos-alpine-distro-<ver>/rootfs/usr/local/bin/{cograw,coginfer,cognitiveosd,cognitiveos-cli,cpm}
 ```
 
-### The Gap: Binaries Exist, Init System Doesn't
+### The Gap: Binaries Exist, Init System Doesn't (RESOLVED by coginit)
 
-The build and install pipeline is **correct**. All 5 binaries are compiled, collected, and placed at `/usr/local/bin/` in both ISO and Docker images. The gap is purely in the init system:
+The build and install pipeline is **correct**. All binaries are compiled, collected, and placed at `/usr/local/bin/` in both ISO and Docker images. The init system gap has been resolved by `coginit`:
 
-| Component | Status |
-|-----------|--------|
-| Binaries compiled | ✅ All 5 binaries build successfully |
-| Binaries installed | ✅ All at `/usr/local/bin/` in final image |
-| CLI launched | ✅ inittab respawns CLI on tty1 |
-| cograw launched | ❌ No OpenRC init script |
-| coginfer launched | ❌ No OpenRC init script |
-| cognitiveosd launched | ⚠️ CLI spawns it as fire-and-forget subprocess |
-| cpm-boot-deps executed | ❌ Script exists but never registered in runlevel |
-| cpm-runtime-deps executed | ❌ Script exists but never registered in runlevel |
+| Component | Status | Resolution |
+|-----------|--------|------------|
+| Binaries compiled | ✅ | All binaries build successfully |
+| Binaries installed | ✅ | All at `/usr/local/bin/` in final image |
+| cograw launched | ✅ | Started by coginit (not OpenRC) |
+| coginfer launched | ✅ | Started by coginit (not OpenRC) |
+| cognitiveosd launched | ✅ | Started by coginit (not OpenRC) |
+| CLI launched | ✅ | TUI supervision loop in coginit |
+| cpm-boot-deps executed | ✅ | Run by coginit (not OpenRC) |
+| cpm-runtime-deps executed | ✅ | Run by coginit (not OpenRC) |
 
 ## Spec References vs Actual Behavior
 
@@ -213,14 +213,14 @@ The build and install pipeline is **correct**. All 5 binaries are compiled, coll
 
 | Step | Spec Reference | What Spec Says | What Code Actually Does | Status |
 |------|---------------|----------------|------------------------|--------|
-| 1 | `distro-build-spec.md:369-371` | Kernel boots, loads drivers | Same | ✅ |
-| 2 | `distro-build-spec.md:372` | OpenRC runs sysinit, boot, default stages | **Missing** — inittab has no `::sysinit:` lines | ❌ Broken |
-| 3 | `distro-build-spec.md:373` | OpenRC starts hwdrivers, networking, alsa | **Missing** — no OpenRC invocation | ❌ Broken |
-| 4 | `distro-build-spec.md:374` | Inittab spawns CLI on tty1 | CLI appears but before services are ready | ⚠️ Premature |
-| 5 | `distro-build-spec.md:375-376` | CLI connects to daemon.sock; spawns daemon if missing | Same (fire-and-forget via `cmd.Start()`) | ✅ |
-| 6 | `distro-build-spec.md:381` | cognitiveosd loads raw model from `config.toml` | **No code reads config.toml** | ❌ Missing |
-| 7 | `distro-build-spec.md:382-386` | Scans patches, builds registry, spawns MCPs, loads Wide Model | Partial — MCPs spawn, Wide Model warns if missing | ⚠️ Partial |
-| 8 | `distro-build-spec.md:387` | Reports "CognitiveOS ready" | **Never reached** — fatal exit at step 6 | ❌ Broken |
+| 1 | `distro-build-spec.md` | Kernel boots, loads drivers | Same | ✅ |
+| 2 | `boot-flow.md` | OpenRC runs sysinit, boot, default stages | **Now correct** — inittab has `::sysinit:` lines + OpenRC stages | ✅ Fixed |
+| 3 | `boot-flow.md` | OpenRC starts hwdrivers, networking, alsa | **Now correct** — OpenRC runs system services only | ✅ Fixed |
+| 4 | `boot-flow.md` | Inittab spawns `coginit --bare-metal` on tty1 | `coginit` is PID 1, starts engines in order | ✅ Fixed |
+| 5 | `boot-flow.md` | coginit starts engines, waits for readiness | cograw→raw.sock→coginfer→HTTP→cognitiveosd→daemon.sock | ✅ |
+| 6 | `boot-flow.md` | cognitiveosd reads `config.toml` | **STILL UNFIXED** — no code reads config.toml | ❌ Missing |
+| 7 | `boot-flow.md` | CPU Scans patches, builds registry, spawns MCPs, loads Wide Model | Partial — MCPs spawn, Wide Model warns if missing | ⚠️ Partial |
+| 8 | `boot-flow.md` | Reports "CognitiveOS ready" | CLI connects to daemon.sock → TUI renders | ✅ Fixed |
 
 ### Boot Sequence: Daemon Startup
 
@@ -271,41 +271,26 @@ The daemon startup sequence in `cognitiveosd/internal/daemon/daemon.go` `Run()`:
 | 5 | Launch TUI | ✅ |
 | 6 | If daemon crashes, CLI dies too (no reconnect) | ⚠️ Bug — `Messages` channel never closed |
 
-## Overlay inittab: Current vs Required
+## Overlay inittab
 
-### Current (Broken)
-
-```
-# CognitiveOS
-tty1::respawn:/usr/local/bin/cognitiveos-cli
-ttyS0::respawn:/usr/local/bin/cognitiveos-cli
-tty2::respawn:/sbin/getty 38400 tty2
-```
-
-This overlay has **3 lines** and **disables the entire OpenRC service layer**. No `::sysinit:`, `::wait:`, or `::shutdown:` directives exist. OpenRC never runs.
-
-### Required (Fixed)
+### Current (Fixed — matches running ISOs)
 
 ```
 ::sysinit:/sbin/openrc sysinit
 ::sysinit:/sbin/openrc boot
 ::wait:/sbin/openrc default
-tty1::respawn:/usr/local/bin/cognitiveos-cli
-ttyS0::respawn:/usr/local/bin/cognitiveos-cli
+tty1::respawn:/usr/local/bin/coginit --bare-metal
+ttyS0::respawn:/usr/local/bin/coginit --bare-metal
 tty2::respawn:/sbin/getty 38400 tty2
 ::ctrlaltdel:/sbin/reboot
 ::shutdown:/sbin/openrc shutdown
 ```
 
-This adds 5 lines that invoke OpenRC at each boot stage, enabling hardware initialization, service dependency ordering, and clean shutdown.
+OpenRC handles system services (devfs, hwdrivers, networking, syslog, acpid). coginit handles CognitiveOS services (cograw, coginfer, cognitiveosd, CLI).
 
-### Why the Overlay Breaks OpenRC
+**Note:** The `genapkovl-cognitiveos.sh` script's dead-code fallback is irrelevant — the overlay inittab now includes OpenRC stages.
 
-The `genapkovl-cognitiveos.sh` script (lines 34-46) has a **dead-code fallback** that generates a correct standard Alpine inittab with OpenRC stages. However, the overlay directory contains `etc/inittab`, which is copied into the image first. Since the file already exists when the fallback check runs (`if [ ! -f "$tmp"/etc/inittab ]`), the fallback is **never executed**.
-
-The overlay inittab takes precedence and contains only the 3-line CognitiveOS snippet, completely replacing the standard Alpine inittab.
-
-## OpenRC Service Layer
+## OpenRC Service Layer (System Services Only)
 
 ### Services Registered by genapkovl
 
@@ -329,65 +314,24 @@ The script at `scripts/genapkovl-cognitiveos.sh` registers these OpenRC services
 | killprocs | shutdown | Process cleanup |
 | savecache | shutdown | Cache persistence |
 
-**None of these services actually execute** because the overlay inittab never invokes OpenRC.
+These services execute correctly — the overlay inittab now includes OpenRC sysinit/boot/default stages.
 
-### Services NOT Registered (Missing)
+### CognitiveOS Service Management (coginit, not OpenRC)
 
-| Service | Required Runlevel | Purpose | Status |
-|---------|------------------|---------|--------|
-| cograw | default | Raw Model guardrail server | ❌ Script does not exist |
-| coginfer | default | Wide Model inference server | ❌ Script does not exist |
-| cognitiveosd | default | Main daemon orchestrator | ❌ Script does not exist |
-| cpm-boot-deps | default | Install boot-stage system packages | ⚠️ Script exists but never registered |
-| cpm-runtime-deps | default | Install runtime-stage system packages | ⚠️ Script exists but never registered |
+CognitiveOS services are NOT managed by OpenRC. They are started and supervised by `coginit`:
 
-### Existing Orphaned Scripts
+| Service | Manager | Start Method | Supervision |
+|---------|---------|-------------|-------------|
+| cograw | coginit | `startCograw()` in engine.go | Auto-restart on crash (500ms delay) |
+| coginfer | coginit | `startCoginfer()` in engine.go | Auto-restart on crash (500ms delay) |
+| cognitiveosd | coginit | `startCognitiveosd()` in engine.go | Auto-restart on crash (500ms delay) |
+| cognitiveos-cli | coginit | TUI supervision loop in bare-metal | Auto-restart on exit (500ms delay) |
+| cpm-boot-deps | coginit | `installDependencies("boot")` | One-shot, run during startup |
+| cpm-runtime-deps | coginit | `installDependencies("runtime")` | One-shot, run after engines start |
 
-**cpm-boot-deps** (`overlay/etc/init.d/cpm-boot-deps`):
+### Existing Orphaned Scripts (Legacy — kept for compatibility)
 
-```sh
-#!/sbin/openrc-run
-description="CognitiveOS Boot-Stage Dependency Collector"
-
-depend() {
-    before cognitiveosd
-    keyword -stop
-}
-
-start() {
-    ebegin "Installing boot-stage dependencies"
-    /usr/local/bin/cpm install-dependencies --stage boot
-    eend $?
-}
-```
-
-Runs before cognitiveosd. Calls `cpm install-dependencies --stage boot` to install system packages needed at boot. Never executes because it is never registered in any runlevel.
-
-**cpm-runtime-deps** (`overlay/etc/init.d/cpm-runtime-deps`):
-
-```sh
-#!/sbin/openrc-run
-description="CognitiveOS Runtime-Stage Dependency Collector"
-
-depend() {
-    after cognitiveosd
-    keyword -start -stop
-}
-
-start() {
-    ebegin "Processing runtime dependency queue"
-    /usr/local/bin/cpm install-dependencies --stage runtime
-    eend $?
-}
-
-stop() {
-    return 0
-}
-```
-
-Runs after cognitiveosd. Calls `cpm install-dependencies --stage runtime`. Never executes because it is never registered in any runlevel.
-
-Both scripts reference `cognitiveosd` in their `depend()` functions, but no `cognitiveosd` OpenRC init script exists.
+**cpm-boot-deps** (`overlay/etc/init.d/cpm-boot-deps`) and **cpm-runtime-deps** (`overlay/etc/init.d/cpm-runtime-deps`) exist as OpenRC init scripts but are no longer used. They are kept for backward compatibility with third-party tooling that may reference them. coginit handles dependency installation directly via `cpm install-dependencies --stage boot/runtime`.
 
 ## Boot Chain Breakage: Cascade Analysis
 
@@ -564,22 +508,22 @@ Library: `github.com/BurntSushi/toml` (zero transitive dependencies, de facto st
 
 Only daemon-relevant sections (`[daemon]`, `[raw_model]`, `[inference]`) should be read into the Go Config struct. System/network/audio/display sections belong to their respective MCP components.
 
-## Spec Contradictions
+## Spec Contradictions (RESOLVED)
 
-| Spec | Claim | Conflicts With |
-|------|-------|---------------|
-| `raw-model.md:438` | inittab spawns cognitiveosd as PID 1 | `distro-build-spec.md:374` (CLI spawned by inittab), `cli-spec.md:20` (CLI on tty1), `architecture.md:51` (inittab skips login, spawns CLI) |
-| `raw-model.md:439` | cognitiveosd spawns cograw | Code assumes cograw is already running (fatal exit if not) |
-| `cognitiveosd-api.md:536` | Loads raw model from config.toml `[raw_model].model` | Code has no TOML parsing |
-| `cognitiveosd-api.md:532` | Starts as PID 1 OR supervised by init | CLI spawns it as a subprocess (neither PID 1 nor init-supervised) |
+| Spec | Claim | Resolution |
+|------|-------|------------|
+| `raw-model.md:438` | inittab spawns cognitiveosd as PID 1 | **RESOLVED by coginit**: inittab spawns `coginit --bare-metal`, which starts and supervises all engines |
+| `raw-model.md:439` | cognitiveosd spawns cograw | **RESOLVED by coginit**: coginit starts cograw before cognitiveosd. cognitiveosd connects to already-running cograw |
+| `cognitiveosd-api.md:536` | Loads raw model from config.toml `[raw_model].model` | **PARTIALLY RESOLVED**: TOML parsing exists in cognitiveosd (`config.go:FromTOML`) and is called from `main.go`. Config.toml file is parsed but code paths that use it (e.g., raw model loading) are incomplete |
+| `cognitiveosd-api.md:532` | Starts as PID 1 OR supervised by init | **RESOLVED**: coginit starts cognitiveosd as a supervised child process on both Docker and bare-metal |
 
-### Recommended Resolution
+### Remaining Config Gap
 
-| Contradiction | Resolution |
-|--------------|------------|
-| PID 1 vs CLI-spawned | **Follow distro-build-spec**: inittab spawns CLI, CLI spawns daemon. This matches the code and the original vision (`gemini-conversation.md`). |
-| Daemon spawns cograw | **Follow init system approach**: OpenRC starts cograw before cognitiveosd. No code change needed. Simpler, follows Linux conventions. |
-| config.toml reading | **Implement TOML parsing**: Align code with specs. |
+| Gap | Status | Notes |
+|-----|--------|-------|
+| config.toml raw_model.model not consumed by coginit | ❌ Unresolved | coginit's `startCograw()` hardcodes model path. `--model` flag added but not wired to config.toml parsing |
+| config.toml daemon.mcp_bin_dir not consumed | ✅ FIXED | Default changed to `/usr/local/lib/cognitiveos/bridges` |
+| config.toml daemon.socket_path consumed | ✅ FIXED | `FromTOML()` reads and applies it |
 
 ## cpm Dependency System: Boot Integration
 
@@ -595,64 +539,35 @@ Only daemon-relevant sections (`[daemon]`, `[raw_model]`, `[inference]`) should 
 ### Current State
 
 - **build** and **install**: Executed inline by `cpm install` — working correctly
-- **boot**: `cpm-boot-deps` script exists but never registered in runlevel — **broken**
-- **runtime**: `cpm-runtime-deps` script exists but never registered in runlevel — **broken**
+- **boot**: Handled by coginit (`installDependencies("boot")` in engine.go) — **working**
+- **runtime**: Handled by coginit (`installDependencies("runtime")` in engine.go) — **working**
 
-### Fix Required
+## Complete Gap Summary (Current State)
 
-1. Register `cpm-boot-deps` and `cpm-runtime-deps` in the `default` OpenRC runlevel via `genapkovl`
-2. Ensure dependency ordering: `cograw → coginfer → cpm-boot-deps → cognitiveosd → cpm-runtime-deps`
+### RESOLVED by coginit
 
-## Complete Gap Summary
+| # | Component | Issue | Resolution |
+|---|-----------|-------|------------|
+| 1 | Inittab | No OpenRC boot stages | ✅ Fixed — inittab has full OpenRC sysinit/boot/default stages |
+| 2 | cograw init script | Does not exist | ✅ Not needed — coginit starts cograw directly |
+| 3 | coginfer init script | Does not exist | ✅ Not needed — coginit starts coginfer directly |
+| 4 | cognitiveosd init script | Does not exist | ✅ Not needed — coginit starts cognitiveosd directly |
+| 5 | genapkovl registration | Never registers CognitiveOS services | ✅ Not needed — coginit handles CognitiveOS services |
+| 6 | cpm-boot-deps | Never registered in runlevel | ✅ Handled by coginit (`installDependencies("boot")`) |
+| 7 | cpm-runtime-deps | Never registered in runlevel | ✅ Handled by coginit (`installDependencies("runtime")`) |
+| 8 | Docker entrypoint | No process orchestration | ✅ coginit as ENTRYPOINT handles orchestration |
+| 14 | MCPBinDir mismatch | Default `/cognitiveos/bin` | ✅ FIXED — default is now `/usr/local/lib/cognitiveos/bridges` |
 
-### Critical (System Cannot Boot)
-
-| # | Component | Issue | Files Affected |
-|---|-----------|-------|----------------|
-| 1 | Inittab | No OpenRC boot stages | `overlay/etc/inittab` |
-| 2 | cograw init script | Does not exist | Should be `/etc/init.d/cograw` |
-| 3 | coginfer init script | Does not exist | Should be `/etc/init.d/coginfer` |
-| 4 | cognitiveosd init script | Does not exist | Should be `/etc/init.d/cognitiveosd` |
-| 5 | genapkovl registration | Never registers CognitiveOS services | `scripts/genapkovl-cognitiveos.sh` |
-
-### High (Functionality Broken)
-
-| # | Component | Issue | Files Affected |
-|---|-----------|-------|----------------|
-| 6 | cpm-boot-deps | Never registered in runlevel | `overlay/etc/init.d/cpm-boot-deps` |
-| 7 | cpm-runtime-deps | Never registered in runlevel | `overlay/etc/init.d/cpm-runtime-deps` |
-| 8 | Docker entrypoint | No process orchestration | All 7 Dockerfiles |
-| 9 | config.toml | Not read by any code | `cognitiveosd/internal/config/` |
-
-### Medium (Reliability)
+### REMAINING (Unfixed)
 
 | # | Component | Issue | Files Affected | Resolution |
 |---|-----------|-------|----------------|------------|
+| 9 | config.toml raw_model.model | Not consumed by coginit | `coginit/internal/coginit/engine.go` | Wire `--model` flag from config |
 | 10 | cograw mock mode | No `--backend` flag for testing | `inference/cmd/cograw/` | Add `--backend` flag (like coginfer) |
 | 11 | coginfer signal handling | No graceful shutdown | `inference/cmd/coginfer/main.go` | Replace bare `http.ListenAndServe` with `http.Server` + `Shutdown()` |
 | 12 | CLI reconnection | Messages channel never closed | `cli/internal/client/client.go` | Close `Messages` channel in `Close()` |
-| 13 | config.Derive() | Overwrites --socket flag | `cognitiveosd/internal/config/config.go` | Add `socketPathExplicit` bool, skip overwrite if set |
-| 14 | MCPBinDir mismatch | Config default `/cognitiveos/bin` vs actual `/usr/local/lib/cognitiveos/bridges` | `cognitiveosd/internal/config/config.go` | Change default to `/usr/local/lib/cognitiveos/bridges` |
-
-### Low (Polish)
-
-| # | Component | Issue | Files Affected |
-|---|-----------|-------|----------------|
-| 15 | registries.toml | Not read by any code | `overlay/etc/cognitiveos/registries.toml` |
-| 16 | image-manifest.json | Placeholder, overwritten at build | `overlay/etc/cognitiveos/image-manifest.json` |
-
-## Resolved Decisions
-
-The following design decisions have been made:
-
-| Decision | Resolution |
-|----------|-----------|
-| PID 1 vs CLI-spawned | **Follow distro-build-spec**: inittab spawns CLI, CLI spawns daemon. Matches code and original vision. |
-| Daemon spawns cograw | **Follow init system approach**: OpenRC starts cograw before cognitiveosd. No code change needed. Simpler, follows Linux conventions. |
-| config.toml reading | **Implement TOML parsing**: Align code with specs using `BurntSushi/toml`. |
-| Docker missing model handling | **Option A — degraded mode**: Entrypoint detects missing GGUF, logs warning, starts cograw with `--backend mock`, continues with coginfer and cognitiveosd. System operates in degraded mode (guardrail active, no inference). |
-| cograw backend selection | **Add `--backend` flag**: Currently compile-time only via build tags. Add runtime flag (like coginfer) to support mock mode for Docker degraded mode and testing. |
-| Docker health check tool | **BusyBox wget**: Available in all Alpine images by default. Works for plain HTTP on `127.0.0.1`. No package change needed. |
+| 13 | registries.toml | Not read by any code | `overlay/etc/cognitiveos/registries.toml` | Low priority — default registries are hardcoded |
+| 14 | image-manifest.json | Placeholder, overwritten at build | `overlay/etc/cognitiveos/image-manifest.json` | Low priority — build-time artifact |
 
 ## References
 
@@ -666,11 +581,10 @@ The following design decisions have been made:
 | `specs/inference-api.md` | 321 | Idle timeout config.toml reference |
 | `specs/filesystem-hierarchy.md` | 68 | config.toml location |
 | `specs/security-model.md` | 51 | config.toml tampering concern |
-| `cognitiveos-alpine-distro/overlay/etc/inittab` | — | Current broken inittab |
-| `cognitiveos-alpine-distro/scripts/genapkovl-cognitiveos.sh` | 34-46, 78-81 | Dead-code fallback, service registration |
-| `cognitiveos-alpine-distro/overlay/etc/init.d/cpm-boot-deps` | — | Orphaned boot dependency script |
-| `cognitiveos-alpine-distro/overlay/etc/init.d/cpm-runtime-deps` | — | Orphaned runtime dependency script |
-| `cognitiveos-alpine-distro/overlay/etc/cognitiveos/config.toml` | — | Orphaned config file |
+| `cognitiveos-alpine-distro/overlay/etc/inittab` | — | Inittab with OpenRC stages + coginit |
+| `cognitiveos-alpine-distro/scripts/genapkovl-cognitiveos.sh` | 34-46, 78-81 | Service registration for system services |
+| `cognitiveosd/internal/config/config.go` | FromTOML() | TOML config parsing (reads daemon/inference/raw_model sections) |
+| `coginit/internal/coginit/engine.go` | — | coginit engine startup with supervision |
 | `cognitiveosd/internal/config/config.go` | — | Config struct, FromEnv(), Derive() |
 | `cognitiveosd/internal/daemon/daemon.go` | Run() method | Daemon startup sequence |
 | `cognitiveosd/internal/daemon/raw_client.go` | Connect() | Fatal exit on cograw missing |

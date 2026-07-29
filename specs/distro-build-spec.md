@@ -148,7 +148,7 @@ The overlay directory is merged into the Alpine root filesystem at image build t
 ```
 overlay/
 ├── etc/
-│   ├── inittab                    # Custom: boots directly into cognitiveos-cli
+│   ├── inittab                    # Custom: boots OpenRC (system services), then coginit on tty1
 │   ├── cognitiveos/
 │   │   ├── config.toml            # Base system configuration
 │   │   └── registries.toml        # Default registry sources
@@ -183,15 +183,26 @@ overlay/
 The critical boot configuration:
 
 ```
-# CognitiveOS — boot directly into the TUI as root
-tty1::respawn:/usr/local/bin/cognitiveos-cli
+# CognitiveOS — full boot with OpenRC system services + coginit PID 1
+::sysinit:/sbin/openrc sysinit
+::sysinit:/sbin/openrc boot
+::wait:/sbin/openrc default
+
+# Primary TTY — coginit as unified PID 1
+tty1::respawn:/usr/local/bin/coginit --bare-metal
 
 # Serial console (for embedded/headless)
-ttyS0::respawn:/usr/local/bin/cognitiveos-cli
+ttyS0::respawn:/usr/local/bin/coginit --bare-metal
 
 # Emergency recovery shell (Ctrl+Alt+F2)
 tty2::respawn:/sbin/getty 38400 tty2
+
+# Shutdown and power management
+::ctrlaltdel:/sbin/reboot
+::shutdown:/sbin/openrc shutdown
 ```
+
+coginit starts CognitiveOS engines (cograw, coginfer, cognitiveosd) in dependency order with automatic crash recovery via supervision goroutines. OpenRC handles only system services (networking, hardware, logging). See `specs/boot-flow.md#coginit--unified-pid-1-implemented` for the full boot sequence.
 
 ## Build Process
 

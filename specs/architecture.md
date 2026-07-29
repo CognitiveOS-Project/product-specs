@@ -48,8 +48,8 @@ Current build (Alpine) provides:
 
 Boot sequence:
 1. Kernel loads hardware drivers
-2. `/etc/inittab` skips login, spawns `cognitiveos-cli` directly on tty1
-3. `cognitiveos-cli` starts, connects to `cognitiveosd`
+2. `/etc/inittab` skips login, runs OpenRC (system services), spawns `coginit` on tty1
+3. `coginit` starts engines (cograw, coginfer, cognitiveosd) in order, then launches `cognitiveos-cli`
 
 ### 2. Hardware Layer (core-mcp-bridges)
 

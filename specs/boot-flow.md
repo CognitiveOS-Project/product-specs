@@ -26,11 +26,16 @@ inittab executes in order:
 ::sysinit:/sbin/openrc sysinit
 ::sysinit:/sbin/openrc boot
 ::wait:/sbin/openrc default
+tty1::respawn:/usr/local/bin/coginit --bare-metal
+ttyS0::respawn:/usr/local/bin/coginit --bare-metal
+tty2::respawn:/sbin/getty 38400 tty2
+::ctrlaltdel:/sbin/reboot
+::shutdown:/sbin/openrc shutdown
 ```
 
 The `::wait:` directive blocks inittab execution until `openrc default` completes. TTY lines below it do not execute until all default services have started.
 
-### Phase 2: OpenRC sysinit
+### Phase 2: OpenRC sysinit (System Services Only)
 
 ```
 openrc sysinit
@@ -41,9 +46,9 @@ openrc sysinit
   → modloop        load kernel modules
 ```
 
-All sysinit services run in dependency order. mdev watches for device hotplug events. hwdrivers loads modules for detected hardware.
+All sysinit services run in dependency order. mdev watches for device hotplug events. hwdrivers loads modules for detected hardware. OpenRC handles only **system-level services** (networking, hardware, logging). CognitiveOS application services are managed by `coginit`.
 
-### Phase 3: OpenRC boot
+### Phase 3: OpenRC boot (System Services Only)
 
 ```
 openrc boot
@@ -55,11 +60,11 @@ openrc boot
   → syslog         start system logger
 ```
 
-Boot services establish system-level configuration before any application services start.
+Boot services establish system-level configuration before any application services start. No CognitiveOS services run here.
 
-### Phase 4: OpenRC default
+### Phase 4: OpenRC default (System Services Only)
 
-This is the critical phase where CognitiveOS services start. Services start in dependency order:
+The `openrc default` phase starts only system services (acpid, cpm-boot-deps). CognitiveOS services (cograw, coginfer, cognitiveosd) are started by `coginit` — not by OpenRC.
 
 ```
 openrc default
@@ -77,38 +82,7 @@ openrc default
   │
   │   result: boot-stage system dependencies are present
   │
-  ├── cograw                    [STARTS SECOND]
-  │   init script: /etc/init.d/cograw
-  │   command: /usr/local/bin/cograw --model /cognitiveos/models/raw/raw-model.gguf
-  │   depend: need localmount cpm-boot-deps, keyword -stop
-  │   pidfile: /run/cograw.pid
-  │   log: /cognitiveos/logs/cograw.log
-  │
-  │   actions:
-  │     1. Load raw-model.gguf into llama.cpp backend
-  │     2. Verify model integrity (sha256 checksum)
-  │     3. Open Unix socket /cognitiveos/run/raw.sock (permissions 0600)
-  │     4. Listen for JSON-RPC 2.0 requests
-  │     5. Write PID to /run/cograw.pid
-  │
-  │   result: raw.sock is available
-  │
-  ├── coginfer                   [STARTS THIRD]
-  │   init script: /etc/init.d/coginfer
-  │   command: /usr/local/bin/coginfer --backend cgo --models /cognitiveos/models
-  │   depend: need localmount cpm-boot-deps, keyword -stop
-  │   pidfile: /run/coginfer.pid
-  │   log: /cognitiveos/logs/coginfer.log
-  │
-  │   actions:
-  │     1. Start HTTP server on 127.0.0.1:11434
-  │     2. Register handlers: /api/generate, /api/pull, /api/delete, /health
-  │     3. Model loaded on-demand (not at startup)
-  │     4. Write PID to /run/coginfer.pid
-  │
-  │   result: HTTP :11434 is available
-  │
-  ├── acpid                      [STARTS FOURTH]
+  ├── acpid                      [STARTS SECOND]
   │   command: /usr/sbin/acpid
   │   actions:
   │     1. Listen for ACPI power events
@@ -116,37 +90,10 @@ openrc default
   │
   │   result: power management active
   │
-  ├── cognitiveosd               [STARTS FIFTH]
-  │   init script: /etc/init.d/cognitiveosd
-  │   command: /usr/local/bin/cognitiveosd
-  │   depend: need cograw, after coginfer, before cpm-runtime-deps
-  │   pidfile: /run/cognitiveosd.pid
-  │   log: /cognitiveos/logs/cognitiveosd.log
-  │
-  │   actions:
-  │     1. Create /cognitiveos/run/ directory (tmpfs)
-  │     2. Open Unix socket /cognitiveos/run/daemon.sock
-  │     3. Connect to cograw via raw.sock
-  │        → net.Dial("unix", "/cognitiveos/run/raw.sock")
-  │        → SUCCEEDS because cograw is already running (Phase 4 step 2)
-  │     4. Connect to coginfer via HTTP GET /health
-  │        → http.Get("http://127.0.0.1:11434/health")
-  │        → SUCCEEDS because coginfer is already running (Phase 4 step 3)
-  │     5. Read /etc/cognitiveos/config.toml (Phase 3 fix)
-  │     6. Apply env var overrides (COGNITIVEOS_*)
-  │     7. Apply CLI flag overrides
-  │     8. Run Derive() to calculate derived paths
-  │     9. Spawn MCP bridge servers (network, audio, display, gpio, serial)
-  │    10. Start audit loop (hardware audit every 60s)
-  │    11. Write PID to /run/cognitiveosd.pid
-  │    12. Enter main event loop (read messages from daemon.sock)
-  │
-  │   result: daemon.sock is available, all services connected
-  │
-  └── cpm-runtime-deps           [STARTS SIXTH]
+  └── cpm-runtime-deps           [STARTS THIRD]
       init script: /etc/init.d/cpm-runtime-deps
       command: /usr/local/bin/cpm install-dependencies --stage runtime
-      depend: after cognitiveosd, keyword -start -stop
+      depend: keyword -start -stop
       one-shot: no PID file, runs once and exits
   
       actions:
@@ -157,39 +104,55 @@ openrc default
       result: runtime dependencies are present
 ```
 
-### Phase 5: TTY and CLI
+### Phase 5: coginit (Unified PID 1)
+
+After `openrc default` completes, inittab continues to TTY lines. `coginit --bare-metal` starts on tty1 as PID 1:
 
 ```
-openrc default completes (::wait returns)
-  → inittab continues to TTY lines
-  → tty1::respawn:/usr/local/bin/cognitiveos-cli
-  → ttyS0::respawn:/usr/local/bin/cognitiveos-cli
-  → tty2::respawn:/sbin/getty 38400 tty2
-```
-
-cognitiveos-cli starts on tty1:
-
-```
-1. Check if /cognitiveos/run/daemon.sock exists
-   → YES (cognitiveosd created it in Phase 4)
-   → Skip daemon spawning
-
-2. Connect to daemon.sock via Unix socket
-   → dials /cognitiveos/run/daemon.sock
-   → succeeds on first attempt (daemon is ready)
-
-3. Send status_request to get current daemon state
-   → receives daemon status (models loaded, patches installed, etc.)
-
-4. Launch TUI
-   → initialize terminal, set alternate screen buffer
-   → create model with initial state = Idle
-
-5. Display: "CognitiveOS ready" (idle screen)
-   → shows system status, model info, ready prompt
-
-6. Enter main event loop
-   → keyboard input → send to daemon → render response
+coginit (PID 1, on /dev/tty1)
+  │
+  │  1. Mount virtual filesystems (/proc, /sys, /dev, /run, /tmp, /dev/pts)
+  │
+  │  2. Start signal handler (SIGINT/SIGTERM graceful shutdown)
+  │
+  │  3. Configure loopback network interface
+  │
+  │  4. Create runtime directories (/cognitiveos/run, /cognitiveos/logs)
+  │
+  │  5. Install boot-stage dependencies
+  │     /usr/local/bin/cpm install-dependencies --stage boot
+  │
+  │  6. Start engines in order with supervision:
+  │
+  │     6a. Start cograw (background, supervised)
+  │         /usr/local/bin/cograw --model <path> --socket /cognitiveos/run/raw.sock
+  │         → wait for raw.sock (10s timeout)
+  │         → supervision: auto-restart on crash (500ms delay)
+  │
+  │     6b. Start coginfer (background, supervised)
+  │         /usr/local/bin/coginfer --backend cgo --models /cognitiveos/models
+  │         → wait for HTTP :11434/health (15s timeout)
+  │         → supervision: auto-restart on crash (500ms delay)
+  │
+  │     6c. Start cognitiveosd (background, supervised)
+  │         /usr/local/bin/cognitiveosd
+  │         → wait for daemon.sock (10s timeout)
+  │         → supervision: auto-restart on crash (500ms delay)
+  │
+  │  7. Install runtime-stage dependencies
+  │     /usr/local/bin/cpm install-dependencies --stage runtime
+  │
+  │  8. Start backdoor monitor (keyboard combos + serial)
+  │
+  │  9. TUI supervision loop
+  │     forever:
+  │       open /dev/tty1
+  │       exec cognitiveos-cli
+  │       wait for CLI exit
+  │       restart after 500ms
+  │
+  │  CLI connects to daemon.sock → TUI renders
+  │  "CognitiveOS ready"
 ```
 
 ### Phase 6: Steady State
@@ -197,48 +160,62 @@ cognitiveos-cli starts on tty1:
 ```
 System is ready for human interaction:
 
-  tty1: cognitiveos-cli TUI (primary interface)
-  ttyS0: cognitiveos-cli TUI (serial console)
+  tty1: coginit(CLI) TUI (primary interface)
+  ttyS0: coginit(CLI) TUI (serial console)
   tty2: getty login prompt (debug/admin access)
 ```
 
-Running processes:
+Running processes (bare-metal):
 
 ```
-PID 1: busybox init
-├── /usr/local/bin/cograw              (raw.sock)
-├── /usr/local/bin/coginfer            (HTTP :11434)
-├── /usr/local/bin/cognitiveosd        (daemon.sock)
-├── /usr/local/bin/cognitiveos-cli     (tty1)
-├── /usr/local/bin/cognitiveos-cli     (ttyS0)
-├── /sbin/getty                        (tty2)
-├── /usr/sbin/acpid
-└── /usr/sbin/syslogd
+PID 1: coginit (/dev/tty1)
+├── /usr/local/bin/cograw              (raw.sock, supervised)
+├── /usr/local/bin/coginfer            (HTTP :11434, supervised)
+├── /usr/local/bin/cognitiveosd        (daemon.sock, supervised)
+└── /usr/local/bin/cognitiveos-cli     (on tty1, supervised)
 ```
 
-OpenRC monitors all backgrounded services. If cograw crashes, OpenRC respawns it. If cognitiveosd crashes, OpenRC respawns it (and the CLI reconnects on next poll).
+Running processes (Docker):
+
+```
+PID 1: cognitiveos-cli (exec'd by coginit)
+  (background, adopted from coginit before exec):
+    /usr/local/bin/cograw              (raw.sock)
+    /usr/local/bin/coginfer            (HTTP :11434)
+    /usr/local/bin/cognitiveosd        (daemon.sock)
+```
+
+coginit supervises all CognitiveOS processes on bare-metal. If any service crashes:
+
+| Service that crashes | Behavior |
+|---------------------|----------|
+| cograw | Supervised goroutine restarts in 500ms. cognitiveosd reconnects |
+| coginfer | Supervised goroutine restarts in 500ms. cognitiveosd reconnects |
+| cognitiveosd | Supervised goroutine restarts in 500ms. CLI reconnects |
+| cognitiveos-cli | TUI supervision loop restarts in 500ms |
+
+In Docker mode, supervision only operates during the startup window (before CLI exec). After `syscall.Exec`, the CLI replaces coginit as PID 1. Docker's `--restart=always` policy should be used for production deployments.
 
 ### Shutdown Flow
 
 ```
-User presses power button (or types reboot)
-  → acpid catches ACPI event, runs /etc/acpi/actions/powerbtn.sh
-  → triggers inittab: ::ctrlaltdel:/sbin/reboot
-  → inittab: ::shutdown:/sbin/openrc shutdown
-  → openrc shutdown:
-      → savecache       save package cache
-      → killprocs       send SIGTERM to all services
-      → mount-ro        remount filesystems read-only
-  → Kernel unmounts, powers off
+SIGTERM/SIGINT received (docker stop, power button, reboot)
+  → coginit forwards SIGTERM to all children
+  → cognitiveos-cli: TUI cleanup, exit
+  → coginfer: graceful shutdown (Unload, close HTTP)
+  → cograw: graceful shutdown, close raw.sock
+  → cognitiveosd: graceful shutdown, close daemon.sock, kill MCP bridges
+  → coginit (Docker): exits → container stops
+  → coginit (Bare-metal): calls syscall.Reboot(POWER_OFF) → system powers off
 ```
 
 Signal propagation during shutdown:
 
 ```
-SIGTERM → cograw:   graceful shutdown, close raw.sock, free model
-SIGTERM → coginfer: graceful shutdown (Phase 4 fix), unload model, close HTTP
-SIGTERM → cognitiveosd: graceful shutdown, close daemon.sock, kill MCP bridges
-SIGTERM → cognitiveos-cli: TUI cleanup, restore terminal
+SIGTERM → cograw:           graceful shutdown, close raw.sock, free model
+SIGTERM → coginfer:         graceful shutdown (Unload, close HTTP)
+SIGTERM → cognitiveosd:     graceful shutdown, close daemon.sock, kill MCP bridges
+SIGTERM → cognitiveos-cli:  TUI cleanup, restore terminal
 ```
 
 ---
@@ -293,82 +270,72 @@ All sockets are bound to localhost or filesystem paths with restrictive permissi
 ### cograw fails to start (model missing)
 
 ```
-ISO:
-  → OpenRC marks cograw as failed
-  → cognitiveosd starts, tries to connect to raw.sock
-  → raw.sock does not exist
-  → cognitiveosd: FATAL: raw model unavailable — system cannot operate safely
-  → cognitiveosd exits
-  → OpenRC marks cognitiveosd as failed
-  → cpm-runtime-deps skipped (depends on cognitiveosd)
-  → tty1 respawns CLI, CLI spawns daemon, daemon fails again → loop
+ISO (coginit bare-metal):
+  → cograw exits immediately (log.Fatalf since model missing)
+  → coginit logs failure, supervision goroutine restarts in 500ms
+  → raw.sock never appears (10s timeout)
+  → coginit continues — cognitiveosd starts, tries raw.sock
+  → cognitiveosd: FATAL exit (raw model unavailable)
+  → coginit restarts cognitiveosd (supervision), it fails again
+  → System stuck in restart loop — each try: cograw fails, cognitiveosd fails
+  → CLI starts (TUI supervision loop), shows "Connecting..." (daemon.sock absent)
+  → Admin must fix model path and reboot
 
-Docker:
-  → entrypoint.sh: cograw exits immediately
-  → Wait loop: raw.sock never appears (30s timeout)
-  → entrypoint.sh continues anyway (best effort)
-  → cognitiveosd starts, tries to connect to raw.sock
-  → cognitiveosd: FATAL exit
-  → daemon.sock never appears (30s timeout)
-  → entrypoint.sh execs CLI anyway
-  → CLI tries to connect to daemon.sock, fails
+Docker (coginit):
+  → Same startup sequence as ISO
+  → After timeout: coginit execs CLI anyway (best effort)
   → CLI shows error, retries indefinitely
+  → Container must be restarted with corrected config
 ```
 
 ### coginfer fails to start
 
 ```
-ISO:
-  → OpenRC marks coginfer as failed
+ISO (coginit bare-metal):
+  → coginfer exits or HTTP never responds
+  → coginit logs warning, supervision restarts in 500ms
   → cognitiveosd starts, connects to raw.sock (OK)
-  → cognitiveosd tries HTTP GET /health on :11434
-  → HTTP connection refused
-  → cognitiveosd: WARNING — Wide Model unavailable, running in degraded mode
-  → cognitiveosd continues (non-fatal)
+  → HTTP check gets connection refused → WARNING, continues degraded
   → System operates with raw model only (guardrail active, no inference)
+  → CLI renders "Wide Model unavailable"
 
-Docker:
-  → entrypoint.sh: coginfer exits immediately
-  → Wait loop: HTTP never responds (30s timeout)
-  → entrypoint.sh continues anyway
-  → cognitiveosd starts, HTTP check warns (non-fatal)
+Docker (coginit):
+  → Same as ISO — coginit continues degraded, execs CLI
   → System runs in degraded mode
 ```
 
 ### cognitiveosd fails to start
 
 ```
-ISO:
-  → OpenRC marks cognitiveosd as failed
-  → cpm-runtime-deps skipped
-  → tty1 respawns CLI
-  → CLI checks daemon.sock — not found
-  → CLI spawns cognitiveosd as subprocess (fire-and-forget)
-  → If same failure: CLI shows error, retries
-  → If different failure (e.g., transient): system recovers
+ISO (coginit bare-metal):
+  → cognitiveosd exits immediately
+  → coginit supervision restarts in 500ms
+  → daemon.sock never appears (10s timeout)
+  → CLI starts (TUI supervision), connects... waits... "Connecting..."
+  → System cycles: cognitiveosd starts, fails, restarts, fails
+  → If transient failure: system recovers on next restart attempt
 
-Docker:
-  → entrypoint.sh: cognitiveosd exits immediately
-  → Wait loop: daemon.sock never appears (30s timeout)
-  → entrypoint.sh execs CLI anyway
-  → CLI tries daemon.sock, fails
+Docker (coginit):
+  → Same startup sequence
+  → After timeout: coginit execs CLI anyway
   → CLI shows error, retries indefinitely
 ```
 
 ### All services healthy, CLI disconnects
 
 ```
-ISO:
-  → OpenRC respawns CLI on tty1
+ISO (coginit bare-metal):
+  → CLI exits (Ctrl+D, crash)
+  → coginit TUI supervision loop: wait 500ms, restart
   → New CLI process starts
   → Connects to daemon.sock (still running)
   → TUI renders, user resumes
 
-Docker:
+Docker (coginit):
   → CLI exits
-  → entrypoint.sh already exec'd, so tini sees child exit
+  → coginit already exec'd into CLI, so PID 1 exits
   → Container stops (no respawn in Docker)
-  → User must docker run again
+  → Docker orchestration must restart container
 ```
 
 ---
