@@ -572,6 +572,7 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -ldflags '-extldflags "-static
 |------|-------------|
 | `--docker` | Force Docker mode (auto-detected by default) |
 | `--bare-metal` | Force bare-metal mode (auto-detected by default) |
+| `--model` | Raw model GGUF path (default: config.toml → env → `/cognitiveos/models/raw/raw-model.gguf`) |
 | `--version` | Print version and exit |
 
 ---

@@ -33,6 +33,7 @@ The daemon (`cognitiveosd`) is the hub. It connects to `cograw` via a Unix socke
 |------|---------|-------------|
 | `--socket` | `/cognitiveos/run/raw.sock` | Unix socket path |
 | `--model` | `/cognitiveos/models/raw/raw-model.gguf` | GGUF model path |
+| `--backend` | `cgo` | Inference backend (`mock`, `cgo`) |
 | `--log` | stderr | Log file path |
 | `--audit-log` | `/cognitiveos/logs/raw/audit.log` | Audit log path |
 | `--version` | — | Print version and exit |
@@ -71,7 +72,7 @@ The daemon (`cognitiveosd`) is the hub. It connects to `cograw` via a Unix socke
 | Binary | Startup Requirement | Behavior if Unmet | Signal Handling |
 |--------|-------------------|-------------------|-----------------|
 | cograw | Model file must exist on disk | `log.Fatalf` — immediate exit | SIGTERM/SIGINT (graceful shutdown) |
-| coginfer | None — starts in degraded mode | Mock backend serves canned responses | **None** — abrupt kill on SIGTERM |
+| coginfer | None — starts in degraded mode | Mock backend serves canned responses | SIGTERM/SIGINT (`http.Server.Shutdown` with 30s timeout) |
 | cognitiveosd | cograw MUST be running | `return fmt.Errorf("FATAL: ...")` — exit | SIGTERM/SIGINT/SIGQUIT (graceful) |
 | cognitiveos-cli | cognitiveosd MUST be running | Retries 30s, then infinite reconnect loop | None (TUI handles) |
 
@@ -218,7 +219,7 @@ The build and install pipeline is **correct**. All binaries are compiled, collec
 | 3 | `boot-flow.md` | OpenRC starts hwdrivers, networking, alsa | **Now correct** — OpenRC runs system services only | ✅ Fixed |
 | 4 | `boot-flow.md` | Inittab spawns `coginit --bare-metal` on tty1 | `coginit` is PID 1, starts engines in order | ✅ Fixed |
 | 5 | `boot-flow.md` | coginit starts engines, waits for readiness | cograw→raw.sock→coginfer→HTTP→cognitiveosd→daemon.sock | ✅ |
-| 6 | `boot-flow.md` | cognitiveosd reads `config.toml` | **STILL UNFIXED** — no code reads config.toml | ❌ Missing |
+| 6 | `boot-flow.md` | cognitiveosd reads `config.toml` | coginit reads config.toml via `DefaultModelPath()`, cognitiveosd reads it via `FromTOML()` | ✅ |
 | 7 | `boot-flow.md` | CPU Scans patches, builds registry, spawns MCPs, loads Wide Model | Partial — MCPs spawn, Wide Model warns if missing | ⚠️ Partial |
 | 8 | `boot-flow.md` | Reports "CognitiveOS ready" | CLI connects to daemon.sock → TUI renders | ✅ Fixed |
 
@@ -269,7 +270,7 @@ The daemon startup sequence in `cognitiveosd/internal/daemon/daemon.go` `Run()`:
 | 3 | Poll socket 8× at 250ms intervals (2s total) | ✅ |
 | 4 | Connect via Unix socket | ✅ |
 | 5 | Launch TUI | ✅ |
-| 6 | If daemon crashes, CLI dies too (no reconnect) | ⚠️ Bug — `Messages` channel never closed |
+| 6 | If daemon crashes, CLI dies too (no reconnect) | ✅ Channel closed in `Close()`, reader handles zero-value shutdown |
 
 ## Overlay inittab
 
@@ -521,7 +522,7 @@ Only daemon-relevant sections (`[daemon]`, `[raw_model]`, `[inference]`) should 
 
 | Gap | Status | Notes |
 |-----|--------|-------|
-| config.toml raw_model.model not consumed by coginit | ❌ Unresolved | coginit's `startCograw()` hardcodes model path. `--model` flag added but not wired to config.toml parsing |
+| config.toml raw_model.model consumed by coginit | ✅ FIXED | `DefaultModelPath()` reads config.toml, precedence: `--model` flag > env > config.toml > default |
 | config.toml daemon.mcp_bin_dir not consumed | ✅ FIXED | Default changed to `/usr/local/lib/cognitiveos/bridges` |
 | config.toml daemon.socket_path consumed | ✅ FIXED | `FromTOML()` reads and applies it |
 
@@ -558,14 +559,19 @@ Only daemon-relevant sections (`[daemon]`, `[raw_model]`, `[inference]`) should 
 | 8 | Docker entrypoint | No process orchestration | ✅ coginit as ENTRYPOINT handles orchestration |
 | 14 | MCPBinDir mismatch | Default `/cognitiveos/bin` | ✅ FIXED — default is now `/usr/local/lib/cognitiveos/bridges` |
 
-### REMAINING (Unfixed)
+### RESOLVED (Previously Unfixed)
+
+| # | Component | Issue | Resolution |
+|---|-----------|-------|------------|
+| 9 | config.toml raw_model.model | Not consumed by coginit | ✅ `coginit/internal/coginit/config.go` reads `/etc/cognitiveos/config.toml` via `DefaultModelPath()` — precedence: `--model` flag > env > config.toml > default |
+| 10 | cograw mock mode | No `--backend` flag | ✅ Already present at `inference/cmd/cograw/main.go:249` (docs were stale) |
+| 11 | coginfer signal handling | No graceful shutdown | ✅ Already present at `inference/cmd/coginfer/main.go:62-83` with `http.Server.Shutdown` + 30s timeout (docs were stale) |
+| 12 | CLI reconnection | Messages channel never closed | ✅ Already closed in `cli/internal/client/client.go:66` via `Close()` → `close(c.Messages)` (docs were stale) |
+
+### REMAINING (Low Priority)
 
 | # | Component | Issue | Files Affected | Resolution |
 |---|-----------|-------|----------------|------------|
-| 9 | config.toml raw_model.model | Not consumed by coginit | `coginit/internal/coginit/engine.go` | Wire `--model` flag from config |
-| 10 | cograw mock mode | No `--backend` flag for testing | `inference/cmd/cograw/` | Add `--backend` flag (like coginfer) |
-| 11 | coginfer signal handling | No graceful shutdown | `inference/cmd/coginfer/main.go` | Replace bare `http.ListenAndServe` with `http.Server` + `Shutdown()` |
-| 12 | CLI reconnection | Messages channel never closed | `cli/internal/client/client.go` | Close `Messages` channel in `Close()` |
 | 13 | registries.toml | Not read by any code | `overlay/etc/cognitiveos/registries.toml` | Low priority — default registries are hardcoded |
 | 14 | image-manifest.json | Placeholder, overwritten at build | `overlay/etc/cognitiveos/image-manifest.json` | Low priority — build-time artifact |
 
