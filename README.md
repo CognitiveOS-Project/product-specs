@@ -92,6 +92,7 @@ All schemas are in `schemas/`. See the [schemas directory](https://github.com/Co
 | `adr/ADR-008-hosting-decision.md` | Hosting decision (Cloud Run vs alternatives) |
 | `adr/ADR-009-machine-identity-profile.md` | Machine identity profile and gated publisher model |
 | `adr/ADR-010-cloud-models-and-secrets.md` | Cloud model support and secret management |
+| `adr/ADR-011-universal-system-sdk.md` | Universal system SDK (cogsdk) |
 
 ## Repos
 
@@ -102,6 +103,7 @@ All schemas are in `schemas/`. See the [schemas directory](https://github.com/Co
 | [cognitiveosd](https://github.com/CognitiveOS-Project/cognitiveosd) | Daemon | System daemon, codes, audits |
 | [cli](https://github.com/CognitiveOS-Project/cli) | UI | Terminal User Interface (TUI) |
 | [cpm](https://github.com/CognitiveOS-Project/cpm) | Package | Package manager |
+| [cogsdk](https://github.com/CognitiveOS-Project/cogsdk) | Library | Universal Go SDK (client/adk/cdk) |
 | [inference](https://github.com/CognitiveOS-Project/inference) | Brain | LLM inference engine |
 | [core-mcp-bridges](https://github.com/CognitiveOS-Project/core-mcp-bridges) | Hardware | MCP hardware servers |
 | [cgp-template](https://github.com/CognitiveOS-Project/cgp-template) | Dev | .cgp boilerplate |
