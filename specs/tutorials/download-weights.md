@@ -232,4 +232,30 @@ cpm download-weights --kind wide --type gguf Llama-3.2-1B-Instruct
 cpm download-weights --kind wide --type gguf Llama-3.2-1B-Instruct-Q8_0
 ```
 
+## Alternative recommendation: Qwen3.5-0.8B-GGUF for `standard` variant
+
+While not baked into any current image, the model `ggml-org/Qwen3.5-0.8B-GGUF` is a well-sized chat model for the `standard` distro variant:
+
+- **Q4_0 size**: 563 MB (well under the 1 GB cap for standard)
+- **Q8_0 size**: 834 MB (still comfortably within 1 GB)
+- **Context**: 1024 tokens (small, fast, like all Raw Model GGUFs)
+- **Why it fits**: The `standard` class (≥8 GB RAM, x86_64) has a 1 GB raw-model slot that comfortably accommodates Q4_0/Q8_0, leaving room for kernel + daemon overhead. The model's `Q4_K_M` quantization strikes a strong size/quality tradeoff for general-purpose assist.
+
+**How to try it:**
+
+```bash
+# Preview all available quants
+cpm download-weights --dry-run --kind wide --type gguf Qwen3.5-0.8B-GGUF
+
+# Download the Q4_K_M quant
+cpm download-weights --kind wide --type gguf Qwen3.5-0.8B-GGUF
+
+# The daemon will pick it up automatically on next startup
+# (it scans /cognitiveos/patches/base/weights/ for .gguf files)
+```
+
+To make this the default wide model for a custom `standard` image, you would create a `.cgp` package with the appropriate `brain.wide_model.routing` entry — see [custom-distro-images.md](custom-distro-images.md) for full image-building instructions.
+
+The model is not shipped by default in any variant (it would exceed the `edge` 500 MB raw-model cap and exceed the `standard` 1.5B baked slot), but it's an excellent candidate for users building their own `standard`-class distro images who want a balance of size and capability.
+
 The daemon loads the first `.gguf` found in `/cognitiveos/patches/base/weights/`. Replace a model by downloading a new one — the old file remains but won't be loaded unless it's the first alphabetically.
