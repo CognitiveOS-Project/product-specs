@@ -46,14 +46,30 @@ This document records the mandatory working agreements adopted across all Cognit
 - Once `INIT` is received, zero interactivity is permitted; all stages execute autonomously to terminal code (`STAGE-999: SUCCESS_DELIVERY` or `BURNOUT-000: TIER_CONSTRAINT_VIOLATION`).
 - Infrastructure and tier constraints MUST be declared in `WHAT`; no infrastructure assumptions are permitted.
 
-## 5. Repo Responsibilities
+## 5. Release Tooling (MUST)
+
+**`sdlc/scripts/release-tag.sh`** — Coordinated SemVer tagging across all CognitiveOS repos.
+
+- All coordinated version tags MUST be created using `sdlc/scripts/release-tag.sh`.
+- Tags MUST follow annotated SemVer format: `vMAJOR.MINOR.PATCH` (or `vMAJOR.MINOR.PATCH-dev.N` for integration tags on `development`).
+- Tags MUST be created on `main` after a release PR merge, never on feature branches.
+- The tag message MUST document the release contents.
+- Tags MUST be pushed to all 15 CognitiveOS repos in a coordinated batch.
+
+**`sdlc/scripts/healthcheck.sh`** — Periodic CI health check across all CognitiveOS repos.
+
+- Health checks MUST be run against `--tag <version>` on `main` for every coordinated release.
+- All repos MUST pass all checks (`sh -n`, `shellcheck`, `go vet`, tag presence, branch match, repository visibility) before a release is considered complete.
+- Any FAIL result MUST be remediated before the release is tagged.
+
+## 6. Repo Responsibilities
 
 | Repo | Role | Source of Truth For |
 |------|------|---------------------|
 | `product-specs` | Architecture | Standards, schemas, protocol definitions, .cgp format, cognitive.json manifest |
-| `sdlc` | Development | Implementation plan, milestones, workflow, CI/CD, mission scripts, process enforcements |
+| `sdlc` | Development | Implementation plan, milestones, workflow, CI/CD, mission scripts, process enforcements, release tooling (`release-tag.sh`, `healthcheck.sh`) |
 
-## 6. Change Control
+## 7. Change Control
 
 - Breaking changes to these enforcements MUST be discussed first in an issue or GitHub Discussion.
 - All changes to this document MUST follow the GHW flow: topic branch → PR → `development` → release PR → `main`.
