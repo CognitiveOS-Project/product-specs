@@ -11,9 +11,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validate JSON schemas
+      - name: Validate JSON schemas (syntax)
         run: |
           for f in schemas/*.json; do
             echo "Validating $f..."
             python3 -m json.tool "$f" > /dev/null
           done
+      - name: Validate JSON schemas (draft compliance)
+        run: |
+          pip install jsonschema
+          python3 -c "
+import json, jsonschema, glob, sys
+failed = 0
+for f in glob.glob('schemas/*.json'):
+    with open(f) as fh:
+        try:
+            schema = json.load(fh)
+            jsonschema.Draft7Validator.check_schema(schema)
+            print(f'OK: {f}')
+        except Exception as e:
+            print(f'FAIL: {f}: {e}')
+            failed = 1
+sys.exit(failed)
+"
+      - name: Markdown linting
+        run: |
+          pip install markdownlint-cli2
+          markdownlint-cli2 '**/*.md' --config .markdownlint.yaml || true
