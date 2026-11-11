@@ -26,3 +26,11 @@ All repos follow the git workflow defined in root `.opencode/instructions/git-wo
 - Commit types: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`
 
 All changes here affect every other repo — discuss breaking changes first in an issue or GitHub Discussion.
+
+## Process Enforcements (MANDATORY)
+
+All work in this repo MUST follow the CognitiveOS Process Enforcements:
+
+- `docs/ENFORCEMENTS.md` — SPECv1, GHW, VibeLeading, ABSEv1 (RFC 2119 MUST-level rules)
+
+These enforcements are binding on every contributor, agent, and automation. No work may bypass them except on explicit user instruction (maintainer emergency).
