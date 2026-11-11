@@ -1,0 +1,7 @@
+# Markdownlint configuration for CognitiveOS product-specs
+default: true
+line-length: false
+no-trailing-punctuation: false
+fenced-code-language: false
+no-duplicate-header: false
+first-heading-h1: false
