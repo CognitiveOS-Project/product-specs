@@ -37,4 +37,8 @@ sys.exit(failed)
       - name: Markdown linting
         run: |
           pip install markdownlint-cli2
-          markdownlint-cli2 '**/*.md' --config .markdownlint.yaml || true
+          markdownlint-cli2 '**/*.md' --config .markdownlint.yaml
+      - name: Validate sample JSON against schemas
+        run: |
+          pip install jsonschema
+          python3 tests/validate_schemas.py
